@@ -50,28 +50,25 @@ export function useAuth() {
   const setLanguage = useLanguageStore((s) => s.setLanguage);
 
   // Hydrate auth state from localStorage on mount
-  const hydrate = useCallback(() => {
+  // Hydrate only ONCE on first mount — not on every render
+  useEffect(() => {
+    // If user is already set (e.g., login just happened), skip hydration
+    if (useAuthStore.getState().user) {
+      setLoading(false);
+      return;
+    }
+
     if (checkAuth()) {
       const storedUser = getStoredUser();
       if (storedUser) {
         setUser(storedUser);
         setLanguage(storedUser.language_preference);
-      } else {
-        // Token exists but no stored user — clear and start fresh
-        clearTokens();
-        setUser(null);
       }
-    } else {
-      // No valid token — clear any stale data
-      clearTokens();
-      setUser(null);
+      // If no stored user but token exists, don't clear — login might have just set it
     }
     setLoading(false);
-  }, [setUser, setLoading, setLanguage]);
-
-  useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const login = useCallback(
     async (credentials: LoginRequest) => {
