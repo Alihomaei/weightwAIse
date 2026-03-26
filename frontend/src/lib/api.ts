@@ -33,7 +33,7 @@ api.interceptors.request.use(
     const token = getAccessToken();
     if (token) {
       // Check if token needs refresh before making request
-      if (isTokenExpired(token) && !config.url?.includes('/auth/refresh')) {
+      if (isTokenExpired(token) && !config.url?.includes('/auth/')) {
         if (!isRefreshing) {
           isRefreshing = true;
           try {
@@ -75,7 +75,7 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/')) {
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth')) {
       originalRequest._retry = true;
 
       try {

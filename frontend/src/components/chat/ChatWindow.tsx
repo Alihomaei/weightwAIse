@@ -20,6 +20,8 @@ import {
   ClipboardCheck,
   Stethoscope,
   MessageSquare,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -70,13 +72,25 @@ export function ChatWindow() {
 
   const [inputText, setInputText] = useState('');
   const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const [autoReadEnabled, setAutoReadEnabled] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const lastReadMessageRef = useRef<string>('');
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingMessage?.content]);
+
+  // Auto-read new assistant messages when toggle is on
+  useEffect(() => {
+    if (!autoReadEnabled || !ttsSupported) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg && lastMsg.role === 'assistant' && lastMsg.id !== lastReadMessageRef.current) {
+      lastReadMessageRef.current = lastMsg.id;
+      speakText(lastMsg.content);
+    }
+  }, [messages, autoReadEnabled, ttsSupported, speakText]);
 
   // Sync voice transcript to input
   useEffect(() => {
@@ -168,6 +182,25 @@ export function ChatWindow() {
           </div>
 
           <div className="flex items-center gap-1.5">
+            {ttsSupported && (
+              <button
+                onClick={() => {
+                  setAutoReadEnabled(!autoReadEnabled);
+                  if (autoReadEnabled) stopSpeech();
+                }}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                  autoReadEnabled
+                    ? 'bg-teal-50 text-teal-700 hover:bg-teal-100'
+                    : 'text-muted-foreground hover:bg-muted'
+                )}
+                aria-label={autoReadEnabled ? 'Disable auto-read' : 'Enable auto-read'}
+                title={autoReadEnabled ? 'Auto-read ON — click to disable' : 'Auto-read OFF — click to enable'}
+              >
+                {autoReadEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+                {autoReadEnabled ? 'ON' : 'OFF'}
+              </button>
+            )}
             <button
               onClick={toggleLanguage}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
@@ -239,7 +272,6 @@ export function ChatWindow() {
                 <MessageBubble
                   key={msg.id}
                   message={msg}
-                  onSpeak={ttsSupported ? speakText : undefined}
                 />
               ))}
 

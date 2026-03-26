@@ -23,6 +23,26 @@ from app.services.chat_service import create_session, process_message
 
 logger = logging.getLogger(__name__)
 
+
+def _clean_response_text(text: str) -> str:
+    """Extract response_text from JSON if the LLM returned raw JSON."""
+    if not text:
+        return ""
+    trimmed = text.strip()
+    # Strip ```json wrapper
+    if trimmed.startswith("```"):
+        trimmed = trimmed.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+    # Parse JSON and extract response_text
+    if trimmed.startswith("{") and '"response_text"' in trimmed:
+        try:
+            parsed = json.loads(trimmed)
+            if isinstance(parsed, dict) and "response_text" in parsed:
+                return parsed["response_text"]
+        except json.JSONDecodeError:
+            pass
+    return text
+
+
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
@@ -120,10 +140,12 @@ async def send_message(
                 pinecone_index=pinecone_index,
             )
 
-            # Stream the response text in chunks for SSE feel
+            # Extract clean response text — strip JSON wrapper if the LLM returned raw JSON
             response_text = result.get("response_text", "")
-            chunk_size = 20  # characters per chunk
+            response_text = _clean_response_text(response_text)
 
+            # Stream the response text in chunks for SSE feel
+            chunk_size = 20  # characters per chunk
             for i in range(0, len(response_text), chunk_size):
                 chunk = response_text[i:i + chunk_size]
                 yield {
@@ -161,17 +183,15 @@ async def send_message(
                 "data": json.dumps({"phase": result.get("phase", "unknown")}),
             }
 
-            # Final done event with complete response
+            yield {
+                "event": "model_used",
+                "data": json.dumps({"model": result.get("model_used", "flash")}),
+            }
+
+            # Final done event — signals stream end (no response_text to avoid duplication)
             yield {
                 "event": "done",
-                "data": json.dumps({
-                    "response_text": response_text,
-                    "citations": result.get("citations", []),
-                    "extracted_fields": result.get("extracted_fields", {}),
-                    "intake_progress": result.get("intake_progress"),
-                    "phase": result.get("phase", "unknown"),
-                    "model_used": result.get("model_used", "flash"),
-                }),
+                "data": json.dumps({"finished": True}),
             }
 
         except Exception as e:

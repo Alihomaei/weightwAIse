@@ -15,6 +15,34 @@ interface MessageBubbleProps {
   isVoiceInput?: boolean;
 }
 
+// Strip JSON wrapper if the LLM returned raw JSON instead of just response_text
+function cleanContent(content: string): string {
+  if (!content) return '';
+  const trimmed = content.trim();
+  // Check if the content is a JSON object with response_text
+  if (trimmed.startsWith('{') && trimmed.includes('"response_text"')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed.response_text) return parsed.response_text;
+    } catch {
+      // Try to extract response_text with regex as fallback
+      const match = trimmed.match(/"response_text"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+      if (match) return match[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+    }
+  }
+  // Also handle ```json wrapped responses
+  if (trimmed.startsWith('```')) {
+    const inner = trimmed.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+    if (inner.startsWith('{') && inner.includes('"response_text"')) {
+      try {
+        const parsed = JSON.parse(inner);
+        if (parsed.response_text) return parsed.response_text;
+      } catch { /* fall through */ }
+    }
+  }
+  return content;
+}
+
 export function MessageBubble({ message, isStreaming = false, onSpeak, isVoiceInput }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
@@ -81,7 +109,7 @@ export function MessageBubble({ message, isStreaming = false, onSpeak, isVoiceIn
         {isAssistant ? (
           <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground text-sm leading-relaxed">
             {message.citations.length > 0 ? (
-              <div>{renderContent(message.content)}</div>
+              <div>{renderContent(cleanContent(message.content))}</div>
             ) : (
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
@@ -98,7 +126,7 @@ export function MessageBubble({ message, isStreaming = false, onSpeak, isVoiceIn
                   ),
                 }}
               >
-                {message.content}
+                {cleanContent(message.content)}
               </ReactMarkdown>
             )}
             {isStreaming && (
@@ -109,22 +137,12 @@ export function MessageBubble({ message, isStreaming = false, onSpeak, isVoiceIn
           <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
         )}
 
-        {/* Actions for assistant messages */}
-        {isAssistant && !isStreaming && onSpeak && (
-          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/40">
-            <button
-              onClick={() => onSpeak(message.content)}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-teal-600 transition-colors"
-              aria-label="Read message aloud"
-            >
-              <Volume2 className="h-3 w-3" />
-              <span>Listen</span>
-            </button>
-            {message.model_used && (
-              <span className="text-[10px] text-muted-foreground/60 ml-auto">
-                {message.model_used}
-              </span>
-            )}
+        {/* Model indicator for assistant messages */}
+        {isAssistant && !isStreaming && message.model_used && message.model_used !== 'system' && (
+          <div className="mt-2 pt-1.5 border-t border-border/30">
+            <span className="text-[10px] text-muted-foreground/50">
+              {message.model_used}
+            </span>
           </div>
         )}
       </div>

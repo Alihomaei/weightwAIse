@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api, { streamChat } from '@/lib/api';
 import { useChatStore, useLanguageStore, useToastStore } from '@/lib/store';
@@ -37,17 +37,26 @@ export function useChat() {
     enabled: !!sessionId,
   });
 
-  // Fetch messages for current session
-  const { refetch: refetchMessages } = useQuery<ChatMessage[]>({
-    queryKey: ['chatMessages', sessionId],
-    queryFn: async () => {
-      if (!sessionId) return [];
-      const res = await api.get<ChatMessage[]>(`/api/chat/sessions/${sessionId}/messages`);
-      setMessages(res.data);
-      return res.data;
-    },
-    enabled: !!sessionId,
-  });
+  // Fetch messages only once when resuming an existing session (not auto-refetch)
+  const messagesLoaded = useRef(false);
+  const refetchMessages = useCallback(async () => {
+    if (!sessionId) return;
+    const res = await api.get<ChatMessage[]>(`/api/chat/sessions/${sessionId}/messages`);
+    setMessages(res.data);
+  }, [sessionId]);
+
+  // Load messages when session changes (for resumed sessions)
+  useEffect(() => {
+    if (sessionId && !messagesLoaded.current) {
+      messagesLoaded.current = true;
+      refetchMessages();
+    }
+  }, [sessionId, refetchMessages]);
+
+  // Reset loaded flag when session changes
+  useEffect(() => {
+    messagesLoaded.current = false;
+  }, [sessionId]);
 
   // Start a new session
   const startSession = useCallback(async () => {
@@ -55,10 +64,16 @@ export function useChat() {
       const res = await api.post<ChatSession>('/api/chat/sessions', {
         session_type: 'intake',
       });
-      setSessionId(res.data.id);
-      setMessages([]);
+      const newSessionId = res.data.id;
+      setSessionId(newSessionId);
       setIntakeProgress(null);
       setCurrentPhase('intake');
+
+      // Fetch the welcome message the backend created
+      const msgsRes = await api.get<ChatMessage[]>(`/api/chat/sessions/${newSessionId}/messages`);
+      setMessages(msgsRes.data);
+      messagesLoaded.current = true;
+
       return res.data;
     } catch (err) {
       addToast('error', 'Failed to start chat session.');
