@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+/* eslint-disable react-hooks/exhaustive-deps */
 import Image from 'next/image';
 import { useChat } from '@/hooks/useChat';
 import { useVoice } from '@/hooks/useVoice';
@@ -46,6 +47,7 @@ const phaseConfig: Record<SessionType, { label: string; icon: React.ReactNode; c
 export function ChatWindow() {
   const {
     session,
+    sessionId,
     messages,
     streamingMessage,
     intakeProgress,
@@ -54,6 +56,7 @@ export function ChatWindow() {
     sendMessage,
     stopStreaming,
     startSession,
+    getOrCreateSession,
   } = useChat();
 
   const {
@@ -154,6 +157,15 @@ export function ChatWindow() {
     setLanguage(language === 'en' ? 'es' : 'en');
   };
 
+  // Auto-create session on mount so the welcome message appears immediately
+  const sessionInitRef = useRef(false);
+  useEffect(() => {
+    if (!sessionInitRef.current && !sessionId && !isStreaming) {
+      sessionInitRef.current = true;
+      getOrCreateSession().catch(() => {});
+    }
+  }, []);
+
   const isSessionCompleted = session?.status === 'completed';
   const phase = currentPhase ? phaseConfig[currentPhase] : phaseConfig.intake;
 
@@ -236,7 +248,7 @@ export function ChatWindow() {
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
         <div className="max-w-3xl mx-auto space-y-5">
-          {/* Welcome message when no messages */}
+          {/* Loading state while session is being created */}
           {messages.length === 0 && !isStreaming && (
             <div className="text-center py-16 animate-fade-in">
               <Image
@@ -244,17 +256,10 @@ export function ChatWindow() {
                 alt="WeightwAIse"
                 width={120}
                 height={52}
-                className="mx-auto mb-6 opacity-80"
+                className="mx-auto mb-6 opacity-60"
               />
-              <h2 className="text-lg font-semibold text-foreground mb-2">
-                {language === 'en'
-                  ? 'Welcome to weightwAIse'
-                  : 'Bienvenido a weightwAIse'}
-              </h2>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-                {language === 'en'
-                  ? "I'm your AI bariatric surgery consultant. Let's start by learning about you. Feel free to type or use the microphone button to speak."
-                  : 'Soy su consultor de cirugia bariatrica con IA. Comencemos aprendiendo sobre usted. Puede escribir o usar el microfono para hablar.'}
+              <p className="text-sm text-muted-foreground animate-pulse">
+                {language === 'en' ? 'Starting session...' : 'Iniciando sesión...'}
               </p>
             </div>
           )}

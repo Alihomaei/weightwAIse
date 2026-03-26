@@ -252,6 +252,7 @@ export function useChat() {
     stopStreaming,
     startSession,
     endSession,
+    getOrCreateSession,
     refetchSession,
     refetchMessages,
     setSessionId,
