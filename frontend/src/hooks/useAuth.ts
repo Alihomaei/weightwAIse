@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '@/lib/api';
+import { API_BASE_URL } from '@/lib/api';
 import {
   getAccessToken,
   setTokens,
@@ -16,8 +16,32 @@ import {
   AuthResponse,
   LoginRequest,
   RegisterRequest,
-  User,
 } from '@/lib/types';
+
+/**
+ * IMPORTANT — login & register use raw fetch(), NOT the axios instance.
+ * This completely bypasses axios interceptors which can attach stale tokens,
+ * attempt token refresh, or redirect — all of which break the auth flow.
+ * See .claude/skills/frontend-auth.md for full explanation.
+ */
+
+async function authFetch(path: string, body: object): Promise<AuthResponse> {
+  // Always clear stale tokens before any auth request
+  clearTokens();
+
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `Auth failed (${res.status})`);
+  }
+
+  return res.json();
+}
 
 export function useAuth() {
   const router = useRouter();
@@ -33,20 +57,13 @@ export function useAuth() {
         setUser(storedUser);
         setLanguage(storedUser.language_preference);
       } else {
-        // Token exists but no user — fetch from API
-        api
-          .get<User>('/api/auth/me')
-          .then((res) => {
-            setUser(res.data);
-            setStoredUser(res.data);
-            setLanguage(res.data.language_preference);
-          })
-          .catch(() => {
-            clearTokens();
-            setUser(null);
-          });
+        // Token exists but no stored user — clear and start fresh
+        clearTokens();
+        setUser(null);
       }
     } else {
+      // No valid token — clear any stale data
+      clearTokens();
       setUser(null);
     }
     setLoading(false);
@@ -59,28 +76,20 @@ export function useAuth() {
   const login = useCallback(
     async (credentials: LoginRequest) => {
       try {
-        // Clear any stale tokens before login attempt — prevents the axios
-        // interceptor from attaching an expired token to the login request
-        clearTokens();
+        const data = await authFetch('/api/auth/login', credentials);
+        setTokens(data.tokens);
+        setStoredUser(data.user);
+        setUser(data.user);
+        setLanguage(data.user.language_preference);
+        addToast('success', `Welcome back, ${data.user.full_name || data.user.username}!`);
 
-        const response = await api.post<AuthResponse>('/api/auth/login', credentials);
-        const { user: loggedInUser, tokens } = response.data;
-        setTokens(tokens);
-        setStoredUser(loggedInUser);
-        setUser(loggedInUser);
-        setLanguage(loggedInUser.language_preference);
-        addToast('success', `Welcome back, ${loggedInUser.full_name || loggedInUser.username}!`);
-
-        // Role-based redirect
-        if (loggedInUser.role === 'admin') {
+        if (data.user.role === 'admin') {
           router.push('/admin');
         } else {
           router.push('/chat');
         }
       } catch (err: unknown) {
-        const message =
-          (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-          'Login failed. Please check your credentials.';
+        const message = (err as Error).message || 'Login failed. Please check your credentials.';
         addToast('error', message);
         throw err;
       }
@@ -91,24 +100,20 @@ export function useAuth() {
   const register = useCallback(
     async (data: RegisterRequest) => {
       try {
-        clearTokens();
-        const response = await api.post<AuthResponse>('/api/auth/register', data);
-        const { user: newUser, tokens } = response.data;
-        setTokens(tokens);
-        setStoredUser(newUser);
-        setUser(newUser);
-        setLanguage(newUser.language_preference);
+        const resp = await authFetch('/api/auth/register', data);
+        setTokens(resp.tokens);
+        setStoredUser(resp.user);
+        setUser(resp.user);
+        setLanguage(resp.user.language_preference);
         addToast('success', 'Account created successfully!');
 
-        if (newUser.role === 'admin') {
+        if (resp.user.role === 'admin') {
           router.push('/admin');
         } else {
           router.push('/chat');
         }
       } catch (err: unknown) {
-        const message =
-          (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-          'Registration failed. Please try again.';
+        const message = (err as Error).message || 'Registration failed. Please try again.';
         addToast('error', message);
         throw err;
       }
@@ -123,21 +128,6 @@ export function useAuth() {
     router.push('/');
   }, [storeLogout, router, addToast]);
 
-  const fetchCurrentUser = useCallback(async () => {
-    const token = getAccessToken();
-    if (!token) return null;
-    try {
-      const response = await api.get<User>('/api/auth/me');
-      setUser(response.data);
-      setStoredUser(response.data);
-      return response.data;
-    } catch {
-      clearTokens();
-      setUser(null);
-      return null;
-    }
-  }, [setUser]);
-
   return {
     user,
     isAuthenticated,
@@ -145,6 +135,5 @@ export function useAuth() {
     login,
     register,
     logout,
-    fetchCurrentUser,
   };
 }
