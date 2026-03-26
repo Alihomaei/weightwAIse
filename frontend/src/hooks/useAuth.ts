@@ -59,6 +59,10 @@ export function useAuth() {
   const login = useCallback(
     async (credentials: LoginRequest) => {
       try {
+        // Clear any stale tokens before login attempt — prevents the axios
+        // interceptor from attaching an expired token to the login request
+        clearTokens();
+
         const response = await api.post<AuthResponse>('/api/auth/login', credentials);
         const { user: loggedInUser, tokens } = response.data;
         setTokens(tokens);
@@ -87,6 +91,7 @@ export function useAuth() {
   const register = useCallback(
     async (data: RegisterRequest) => {
       try {
+        clearTokens();
         const response = await api.post<AuthResponse>('/api/auth/register', data);
         const { user: newUser, tokens } = response.data;
         setTokens(tokens);
