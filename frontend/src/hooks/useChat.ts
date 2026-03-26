@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api, { streamChat } from '@/lib/api';
 import { useChatStore, useLanguageStore, useToastStore } from '@/lib/store';
@@ -26,7 +26,7 @@ export function useChat() {
   const [currentPhase, setCurrentPhase] = useState<SessionType>('intake');
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Fetch current session
+  // Fetch current session metadata (not messages)
   const { data: session, refetch: refetchSession } = useQuery<ChatSession>({
     queryKey: ['chatSession', sessionId],
     queryFn: async () => {
@@ -35,86 +35,66 @@ export function useChat() {
       return res.data;
     },
     enabled: !!sessionId,
+    refetchOnWindowFocus: false,
   });
 
-  // Fetch messages only once when resuming an existing session (not auto-refetch)
-  const messagesLoaded = useRef(false);
-  const refetchMessages = useCallback(async () => {
-    if (!sessionId) return;
-    const res = await api.get<ChatMessage[]>(`/api/chat/sessions/${sessionId}/messages`);
+  // Helper: load messages from backend for a session
+  const loadMessages = useCallback(async (sid: string) => {
+    const res = await api.get<ChatMessage[]>(`/api/chat/sessions/${sid}/messages`);
     setMessages(res.data);
-  }, [sessionId]);
+    return res.data;
+  }, []);
 
-  // Load messages when session changes (for resumed sessions)
-  useEffect(() => {
-    if (sessionId && !messagesLoaded.current) {
-      messagesLoaded.current = true;
-      refetchMessages();
-    }
-  }, [sessionId, refetchMessages]);
-
-  // Reset loaded flag when session changes
-  useEffect(() => {
-    messagesLoaded.current = false;
-  }, [sessionId]);
-
-  // Start a new session
+  // Start a new session — returns session and loads welcome message
   const startSession = useCallback(async () => {
     try {
       const res = await api.post<ChatSession>('/api/chat/sessions', {
         session_type: 'intake',
       });
-      const newSessionId = res.data.id;
-      setSessionId(newSessionId);
+      const newId = res.data.id;
+      setSessionId(newId);
       setIntakeProgress(null);
       setCurrentPhase('intake');
-
-      // Fetch the welcome message the backend created
-      const msgsRes = await api.get<ChatMessage[]>(`/api/chat/sessions/${newSessionId}/messages`);
-      setMessages(msgsRes.data);
-      messagesLoaded.current = true;
-
+      await loadMessages(newId);
       return res.data;
     } catch (err) {
       addToast('error', 'Failed to start chat session.');
       throw err;
     }
-  }, [setSessionId, addToast]);
+  }, [setSessionId, addToast, loadMessages]);
 
-  // Get or create session
-  const getOrCreateSession = useCallback(async () => {
+  // Get existing session or create new one
+  const getOrCreateSession = useCallback(async (): Promise<string> => {
     if (sessionId) return sessionId;
 
     try {
-      // Try to find an active session first
-      const res = await api.get<ChatSession[]>('/api/chat/sessions', {
-        params: { status: 'active' },
-      });
-      if (res.data.length > 0) {
-        const activeSession = res.data[0];
-        setSessionId(activeSession.id);
-        return activeSession.id;
+      const res = await api.get<ChatSession[]>('/api/chat/sessions');
+      const active = res.data.find((s) => s.status === 'active');
+      if (active) {
+        setSessionId(active.id);
+        await loadMessages(active.id);
+        return active.id;
       }
     } catch {
-      // Ignore and create new
+      // Ignore — create new
     }
 
     const newSession = await startSession();
     return newSession.id;
-  }, [sessionId, setSessionId, startSession]);
+  }, [sessionId, setSessionId, startSession, loadMessages]);
 
-  // Send a message with SSE streaming
+  // Send a message
   const sendMessage = useCallback(
     async (content: string, isVoice = false) => {
       if (isStreaming) return;
 
-      const currentSessionId = await getOrCreateSession();
+      const sid = await getOrCreateSession();
       setStreaming(true);
 
       // Add user message to local state immediately
       const userMessage: ChatMessage = {
         id: generateId(),
-        session_id: currentSessionId,
+        session_id: sid,
         role: 'user',
         content,
         citations: [],
@@ -126,7 +106,7 @@ export function useChat() {
       setMessages((prev) => [...prev, userMessage]);
 
       // Initialize streaming message
-      const streamMsg: StreamingMessage = {
+      setStreamingMessage({
         content: '',
         citations: [],
         extracted_fields: {},
@@ -134,15 +114,14 @@ export function useChat() {
         phase: null,
         model_used: null,
         isStreaming: true,
-      };
-      setStreamingMessage(streamMsg);
+      });
 
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
 
       try {
         await streamChat(
-          currentSessionId,
+          sid,
           content,
           language,
           {
@@ -181,11 +160,10 @@ export function useChat() {
             },
             onDone: () => {
               setStreamingMessage((prev) => {
-                if (prev) {
-                  // Move streaming message to messages array
+                if (prev && prev.content) {
                   const finalMessage: ChatMessage = {
                     id: generateId(),
-                    session_id: currentSessionId,
+                    session_id: sid,
                     role: 'assistant',
                     content: prev.content,
                     citations: prev.citations,
@@ -249,13 +227,18 @@ export function useChat() {
   const endSession = useCallback(async () => {
     if (!sessionId) return;
     try {
-      await api.patch(`/api/chat/sessions/${sessionId}`, { status: 'completed' });
+      await api.post(`/api/chat/sessions/${sessionId}/end`);
       queryClient.invalidateQueries({ queryKey: ['chatSession'] });
       addToast('success', 'Session ended.');
     } catch {
       addToast('error', 'Failed to end session.');
     }
   }, [sessionId, queryClient, addToast]);
+
+  // Manual refetch for resuming sessions
+  const refetchMessages = useCallback(async () => {
+    if (sessionId) await loadMessages(sessionId);
+  }, [sessionId, loadMessages]);
 
   return {
     session,
