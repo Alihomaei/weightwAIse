@@ -167,6 +167,7 @@ export async function streamChat(
   const decoder = new TextDecoder();
   let buffer = '';
   let currentEvent = '';
+  let doneReceived = false;
 
   try {
     while (true) {
@@ -178,7 +179,6 @@ export async function streamChat(
       buffer = lines.pop() || '';
 
       for (const line of lines) {
-        // SSE format: "event: <name>" followed by "data: <json>"
         if (line.startsWith('event: ')) {
           currentEvent = line.slice(7).trim();
           continue;
@@ -186,10 +186,7 @@ export async function streamChat(
 
         if (!line.startsWith('data: ')) continue;
         const jsonStr = line.slice(6).trim();
-        if (!jsonStr || jsonStr === '[DONE]') {
-          callbacks.onDone({});
-          continue;
-        }
+        if (!jsonStr) continue; // Skip empty data lines
 
         try {
           const data = JSON.parse(jsonStr);
@@ -214,7 +211,10 @@ export async function streamChat(
               callbacks.onModelUsed(data.model || data);
               break;
             case 'done':
-              callbacks.onDone(data);
+              if (!doneReceived) {
+                doneReceived = true;
+                callbacks.onDone(data);
+              }
               break;
             case 'error':
               callbacks.onError(data.error || JSON.stringify(data));
@@ -225,6 +225,10 @@ export async function streamChat(
           // Skip malformed JSON lines
         }
       }
+    }
+    // Stream ended — call onDone if backend didn't send explicit done event
+    if (!doneReceived) {
+      callbacks.onDone({});
     }
   } finally {
     reader.releaseLock();

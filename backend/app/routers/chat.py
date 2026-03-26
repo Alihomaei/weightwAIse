@@ -129,77 +129,39 @@ async def send_message(
 
     pinecone_index = _get_pinecone_index(request)
 
+    # Do ALL DB work BEFORE streaming — this releases the DB session
+    try:
+        result = await process_message(
+            db=db,
+            session=session,
+            user_message=body.content,
+            language=body.language,
+            pinecone_index=pinecone_index,
+        )
+    except Exception as e:
+        logger.error("Message processing error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+    response_text = _clean_response_text(result.get("response_text", ""))
+
     async def event_generator():
-        try:
-            # Process the message (this does the full pipeline: extract, RAG, LLM)
-            result = await process_message(
-                db=db,
-                session=session,
-                user_message=body.content,
-                language=body.language,
-                pinecone_index=pinecone_index,
-            )
+        # Stream response text in chunks
+        chunk_size = 20
+        for i in range(0, len(response_text), chunk_size):
+            yield {"event": "token", "data": json.dumps({"text": response_text[i:i + chunk_size]})}
 
-            # Extract clean response text — strip JSON wrapper if the LLM returned raw JSON
-            response_text = result.get("response_text", "")
-            response_text = _clean_response_text(response_text)
+        if result.get("citations"):
+            yield {"event": "citations", "data": json.dumps(result["citations"])}
+        if result.get("extracted_fields"):
+            yield {"event": "extracted_fields", "data": json.dumps(result["extracted_fields"])}
+        if result.get("intake_progress"):
+            yield {"event": "intake_progress", "data": json.dumps(result["intake_progress"])}
+        if result.get("decision_result"):
+            yield {"event": "decision_result", "data": json.dumps(result["decision_result"])}
 
-            # Stream the response text in chunks for SSE feel
-            chunk_size = 20  # characters per chunk
-            for i in range(0, len(response_text), chunk_size):
-                chunk = response_text[i:i + chunk_size]
-                yield {
-                    "event": "token",
-                    "data": json.dumps({"text": chunk}),
-                }
-
-            # Send metadata events
-            if result.get("citations"):
-                yield {
-                    "event": "citations",
-                    "data": json.dumps(result["citations"]),
-                }
-
-            if result.get("extracted_fields"):
-                yield {
-                    "event": "extracted_fields",
-                    "data": json.dumps(result["extracted_fields"]),
-                }
-
-            if result.get("intake_progress"):
-                yield {
-                    "event": "intake_progress",
-                    "data": json.dumps(result["intake_progress"]),
-                }
-
-            if result.get("decision_result"):
-                yield {
-                    "event": "decision_result",
-                    "data": json.dumps(result["decision_result"]),
-                }
-
-            yield {
-                "event": "phase",
-                "data": json.dumps({"phase": result.get("phase", "unknown")}),
-            }
-
-            yield {
-                "event": "model_used",
-                "data": json.dumps({"model": result.get("model_used", "flash")}),
-            }
-
-            # Final done event — signals stream end (no response_text to avoid duplication)
-            yield {
-                "event": "done",
-                "data": json.dumps({"finished": True}),
-            }
-
-        except Exception as e:
-            logger.error("Message processing error: %s", e, exc_info=True)
-            yield {
-                "event": "error",
-                "data": json.dumps({"error": str(e)}),
-            }
+        yield {"event": "phase", "data": json.dumps({"phase": result.get("phase", "unknown")})}
+        yield {"event": "model_used", "data": json.dumps({"model": result.get("model_used", "flash")})}
+        yield {"event": "done", "data": json.dumps({"finished": True})}
 
     return EventSourceResponse(event_generator())
 
