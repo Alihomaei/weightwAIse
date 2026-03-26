@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { useChat } from '@/hooks/useChat';
 import { useVoice } from '@/hooks/useVoice';
 import { useLanguageStore, useAuthStore } from '@/lib/store';
@@ -10,34 +11,33 @@ import { VoiceButton } from './VoiceButton';
 import { IntakeProgressBar } from './IntakeProgress';
 import { SessionSummary } from './SessionSummary';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { Spinner } from '@/components/ui/Spinner';
+import { Separator } from '@/components/ui/Separator';
 import {
   Send,
   StopCircle,
   Globe,
   LogOut,
-  MessageSquare,
-  Stethoscope,
   ClipboardCheck,
+  Stethoscope,
+  MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const phaseConfig: Record<SessionType, { label: string; icon: React.ReactNode; color: string }> = {
   intake: {
     label: 'Intake',
-    icon: <ClipboardCheck className="h-3.5 w-3.5" />,
-    color: 'bg-blue-100 text-blue-700',
+    icon: <ClipboardCheck className="h-3 w-3" />,
+    color: 'bg-blue-50 text-blue-700 border border-blue-200/60',
   },
   consultation: {
     label: 'Consultation',
-    icon: <Stethoscope className="h-3.5 w-3.5" />,
-    color: 'bg-teal-100 text-teal-700',
+    icon: <Stethoscope className="h-3 w-3" />,
+    color: 'bg-teal-50 text-teal-700 border border-teal-200/60',
   },
   follow_up: {
     label: 'Follow-up',
-    icon: <MessageSquare className="h-3.5 w-3.5" />,
-    color: 'bg-purple-100 text-purple-700',
+    icon: <MessageSquare className="h-3 w-3" />,
+    color: 'bg-purple-50 text-purple-700 border border-purple-200/60',
   },
 };
 
@@ -67,7 +67,6 @@ export function ChatWindow() {
 
   const { language, setLanguage } = useLanguageStore();
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
 
   const [inputText, setInputText] = useState('');
   const [isVoiceMode, setIsVoiceMode] = useState(false);
@@ -89,8 +88,6 @@ export function ChatWindow() {
   // When voice stops, mark the message as voice-inputted
   useEffect(() => {
     if (!isListening && isVoiceMode && currentTranscript.trim()) {
-      // Auto-send voice message after recording stops
-      // Small delay to capture final result
       const timer = setTimeout(() => {
         if (currentTranscript.trim()) {
           handleSend(currentTranscript.trim(), true);
@@ -135,7 +132,6 @@ export function ChatWindow() {
 
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputText(e.target.value);
-    // Auto-resize
     e.target.style.height = 'auto';
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
   };
@@ -148,31 +144,33 @@ export function ChatWindow() {
   const phase = currentPhase ? phaseConfig[currentPhase] : phaseConfig.intake;
 
   return (
-    <div className="flex flex-col h-full bg-medical-bg">
-      {/* Header */}
-      <header className="bg-white border-b border-medical-border px-4 py-3 shrink-0">
+    <div className="flex flex-col h-full bg-background">
+      {/* Header - minimal top bar */}
+      <header className="bg-background/80 backdrop-blur-md border-b px-4 py-2.5 shrink-0 z-10">
         <div className="flex items-center justify-between max-w-3xl mx-auto">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary-600 to-teal-500 flex items-center justify-center">
-              <Stethoscope className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-sm font-semibold text-medical-text">
-                {user?.full_name || 'Patient'}
-              </h1>
-              <div className="flex items-center gap-2">
-                <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium', phase.color)}>
-                  {phase.icon}
-                  {phase.label}
-                </span>
-              </div>
-            </div>
+            <Image
+              src="/logo.png"
+              alt="WeightwAIse"
+              width={100}
+              height={44}
+              className="h-8 w-auto"
+              priority
+            />
+            <Separator orientation="vertical" className="h-5" />
+            <span className={cn(
+              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium',
+              phase.color
+            )}>
+              {phase.icon}
+              {phase.label}
+            </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={toggleLanguage}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-medical-border text-xs font-medium text-medical-muted hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
               aria-label={`Switch to ${language === 'en' ? 'Spanish' : 'English'}`}
             >
               <Globe className="h-3.5 w-3.5" />
@@ -186,7 +184,7 @@ export function ChatWindow() {
                   window.location.href = '/';
                 });
               }}
-              className="p-2 rounded-lg text-medical-muted hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-lg text-muted-foreground hover:bg-muted transition-colors"
               aria-label="Sign out"
             >
               <LogOut className="h-4 w-4" />
@@ -195,7 +193,7 @@ export function ChatWindow() {
         </div>
       </header>
 
-      {/* Intake Progress */}
+      {/* Intake Progress - subtle and collapsible */}
       {intakeProgress && currentPhase === 'intake' && (
         <div className="px-4 py-2 shrink-0 max-w-3xl mx-auto w-full">
           <IntakeProgressBar progress={intakeProgress} />
@@ -203,20 +201,24 @@ export function ChatWindow() {
       )}
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
-        <div className="max-w-3xl mx-auto space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 py-6">
+        <div className="max-w-3xl mx-auto space-y-5">
           {/* Welcome message when no messages */}
           {messages.length === 0 && !isStreaming && (
-            <div className="text-center py-12 animate-fade-in">
-              <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary-100 to-teal-100 flex items-center justify-center mx-auto mb-4">
-                <Stethoscope className="h-8 w-8 text-primary-700" />
-              </div>
-              <h2 className="text-lg font-semibold text-medical-text mb-2">
+            <div className="text-center py-16 animate-fade-in">
+              <Image
+                src="/logo.png"
+                alt="WeightwAIse"
+                width={120}
+                height={52}
+                className="mx-auto mb-6 opacity-80"
+              />
+              <h2 className="text-lg font-semibold text-foreground mb-2">
                 {language === 'en'
                   ? 'Welcome to weightwAIse'
                   : 'Bienvenido a weightwAIse'}
               </h2>
-              <p className="text-sm text-medical-muted max-w-md mx-auto">
+              <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
                 {language === 'en'
                   ? "I'm your AI bariatric surgery consultant. Let's start by learning about you. Feel free to type or use the microphone button to speak."
                   : 'Soy su consultor de cirugia bariatrica con IA. Comencemos aprendiendo sobre usted. Puede escribir o usar el microfono para hablar.'}
@@ -265,19 +267,19 @@ export function ChatWindow() {
         </div>
       </div>
 
-      {/* Input Area */}
+      {/* Input Area - pinned to bottom, ChatGPT-style */}
       {!isSessionCompleted && (
-        <div className="bg-white border-t border-medical-border px-4 py-3 shrink-0">
+        <div className="bg-gradient-to-t from-background via-background to-transparent px-4 pb-4 pt-2 shrink-0">
           <div className="max-w-3xl mx-auto">
             {/* Voice transcript preview */}
             {isListening && currentTranscript && (
-              <div className="mb-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 animate-fade-in">
+              <div className="mb-2 px-3 py-2 bg-red-50 border border-red-200/60 rounded-xl text-sm text-red-700 animate-fade-in">
                 <span className="inline-block h-2 w-2 bg-red-500 rounded-full animate-pulse mr-2" />
                 {currentTranscript}
               </div>
             )}
 
-            <div className="flex items-end gap-2">
+            <div className="flex items-end gap-2 bg-muted/50 border rounded-2xl p-2 shadow-sm focus-within:ring-2 focus-within:ring-ring focus-within:border-transparent transition-all">
               {/* Voice Button */}
               <VoiceButton
                 isListening={isListening}
@@ -287,48 +289,51 @@ export function ChatWindow() {
               />
 
               {/* Text Input */}
-              <div className="flex-1 relative">
-                <textarea
-                  ref={inputRef}
-                  value={inputText}
-                  onChange={handleTextareaChange}
-                  onKeyDown={handleKeyDown}
-                  placeholder={
-                    language === 'en'
-                      ? 'Type your message...'
-                      : 'Escribe tu mensaje...'
-                  }
-                  rows={1}
-                  className="w-full resize-none rounded-xl border border-medical-border px-4 py-2.5 text-sm text-medical-text placeholder:text-medical-muted focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-gray-50 hover:bg-white transition-colors"
-                  disabled={isStreaming}
-                  aria-label="Chat message input"
-                />
-              </div>
+              <textarea
+                ref={inputRef}
+                value={inputText}
+                onChange={handleTextareaChange}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  language === 'en'
+                    ? 'Type your message...'
+                    : 'Escribe tu mensaje...'
+                }
+                rows={1}
+                className="flex-1 resize-none bg-transparent px-2 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                disabled={isStreaming}
+                aria-label="Chat message input"
+              />
 
               {/* Send / Stop Button */}
               {isStreaming ? (
-                <Button
-                  variant="danger"
-                  size="icon"
+                <button
                   onClick={stopStreaming}
-                  className="rounded-xl h-10 w-10"
+                  className="shrink-0 h-9 w-9 rounded-xl bg-destructive text-destructive-foreground flex items-center justify-center hover:bg-destructive/90 transition-colors"
                   aria-label="Stop response"
                 >
-                  <StopCircle className="h-5 w-5" />
-                </Button>
+                  <StopCircle className="h-4 w-4" />
+                </button>
               ) : (
-                <Button
-                  variant="primary"
-                  size="icon"
+                <button
                   onClick={() => handleSend()}
                   disabled={!inputText.trim()}
-                  className="rounded-xl h-10 w-10"
+                  className={cn(
+                    'shrink-0 h-9 w-9 rounded-xl flex items-center justify-center transition-all',
+                    inputText.trim()
+                      ? 'bg-primary-800 text-white hover:bg-primary-900 shadow-sm'
+                      : 'bg-muted text-muted-foreground cursor-not-allowed'
+                  )}
                   aria-label="Send message"
                 >
-                  <Send className="h-5 w-5" />
-                </Button>
+                  <Send className="h-4 w-4" />
+                </button>
               )}
             </div>
+
+            <p className="text-[10px] text-muted-foreground text-center mt-2">
+              WeightwAIse provides informational guidance only. Always consult a qualified surgeon.
+            </p>
           </div>
         </div>
       )}

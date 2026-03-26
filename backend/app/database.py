@@ -1,5 +1,6 @@
 """Async SQLAlchemy engine and session factory for SQLite (dev) / PostgreSQL (prod)."""
 
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -16,11 +17,23 @@ engine = create_async_engine(
     connect_args=connect_args,
 )
 
+# Enable WAL mode for SQLite to allow concurrent reads during writes
+if settings.DATABASE_URL.startswith("sqlite"):
+    @event.listens_for(engine.sync_engine, "connect")
+    def _set_sqlite_wal(dbapi_conn, connection_record):
+        cursor = dbapi_conn.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=30000")
+        cursor.close()
+
 async_session_factory = async_sessionmaker(
     engine,
     class_=AsyncSession,
     expire_on_commit=False,
 )
+
+# Alias for background tasks that need their own session
+AsyncSessionLocal = async_session_factory
 
 
 class Base(DeclarativeBase):

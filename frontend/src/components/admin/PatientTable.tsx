@@ -3,15 +3,15 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { PatientSummary, PatientIntake, ChatSession, ChatMessage } from '@/lib/types';
+import { PatientSummary, PatientIntake, ChatSession } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Card, CardTitle } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
+import { Separator } from '@/components/ui/Separator';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToastStore } from '@/lib/store';
-import { formatDate, formatRelativeTime } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import {
   Search,
   ChevronUp,
@@ -34,7 +34,6 @@ export function PatientTable() {
   const [selectedPatient, setSelectedPatient] = useState<PatientSummary | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
-  // Fetch patients
   const { data: patients, isLoading } = useQuery<PatientSummary[]>({
     queryKey: ['adminPatients'],
     queryFn: async () => {
@@ -43,7 +42,6 @@ export function PatientTable() {
     },
   });
 
-  // Fetch patient detail when selected
   const { data: patientIntake, isLoading: intakeLoading } = useQuery<PatientIntake>({
     queryKey: ['patientIntake', selectedPatient?.user_id],
     queryFn: async () => {
@@ -66,7 +64,6 @@ export function PatientTable() {
     enabled: !!selectedPatient,
   });
 
-  // Sort and filter
   const filtered = (patients || [])
     .filter((p) => {
       if (!searchQuery.trim()) return true;
@@ -104,9 +101,9 @@ export function PatientTable() {
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return null;
     return sortDir === 'asc' ? (
-      <ChevronUp className="h-3.5 w-3.5" />
+      <ChevronUp className="h-3 w-3" />
     ) : (
-      <ChevronDown className="h-3.5 w-3.5" />
+      <ChevronDown className="h-3 w-3" />
     );
   };
 
@@ -146,105 +143,107 @@ export function PatientTable() {
     <>
       {/* Search Bar */}
       <div className="mb-4 relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-medical-muted" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <input
           type="text"
           placeholder="Search patients by name or username..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-medical-border text-sm text-medical-text placeholder:text-medical-muted focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-input bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
       </div>
 
       {/* Table */}
-      <div className="bg-white border border-medical-border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-gray-50 border-b border-medical-border">
-              {[
-                { key: 'full_name' as SortField, label: 'Name' },
-                { key: 'created_at' as SortField, label: 'Registered' },
-                { key: 'intake_status' as SortField, label: 'Intake' },
-                { key: 'sessions_count' as SortField, label: 'Sessions' },
-              ].map(({ key, label }) => (
-                <th
-                  key={key}
-                  className="text-left py-3 px-4 font-medium text-medical-muted cursor-pointer hover:text-medical-text transition-colors"
-                  onClick={() => toggleSort(key)}
-                >
-                  <div className="flex items-center gap-1">
-                    {label}
-                    <SortIcon field={key} />
-                  </div>
-                </th>
-              ))}
-              <th className="text-right py-3 px-4 font-medium text-medical-muted">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="text-center py-8 text-medical-muted">
-                  {searchQuery ? 'No patients match your search.' : 'No patients registered yet.'}
-                </td>
+      <Card padding="none">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-muted/30">
+                {[
+                  { key: 'full_name' as SortField, label: 'Name' },
+                  { key: 'created_at' as SortField, label: 'Registered' },
+                  { key: 'intake_status' as SortField, label: 'Intake' },
+                  { key: 'sessions_count' as SortField, label: 'Sessions' },
+                ].map(({ key, label }) => (
+                  <th
+                    key={key}
+                    className="text-left py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors"
+                    onClick={() => toggleSort(key)}
+                  >
+                    <div className="flex items-center gap-1">
+                      {label}
+                      <SortIcon field={key} />
+                    </div>
+                  </th>
+                ))}
+                <th className="text-right py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Actions</th>
               </tr>
-            ) : (
-              filtered.map((patient) => (
-                <tr
-                  key={patient.id}
-                  className="border-b border-gray-50 hover:bg-gray-50 transition-colors"
-                >
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
-                        <User className="h-4 w-4 text-primary-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-medical-text">{patient.full_name}</p>
-                        <p className="text-xs text-medical-muted">@{patient.username}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-medical-muted">
-                    {formatDate(patient.created_at)}
-                  </td>
-                  <td className="py-3 px-4">
-                    <Badge
-                      variant={patient.intake_status === 'complete' ? 'success' : 'warning'}
-                      dot
-                    >
-                      {patient.intake_status === 'complete' ? 'Complete' : 'In Progress'}
-                    </Badge>
-                  </td>
-                  <td className="py-3 px-4 text-medical-text">
-                    {patient.sessions_count}
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => openDetail(patient)}
-                        className="p-1.5 rounded-lg text-medical-muted hover:bg-gray-100 hover:text-primary-600 transition-colors"
-                        aria-label="View patient details"
-                        title="View details"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDownloadReport(patient.user_id)}
-                        className="p-1.5 rounded-lg text-medical-muted hover:bg-gray-100 hover:text-teal-600 transition-colors"
-                        aria-label="Download patient report"
-                        title="Download PDF"
-                      >
-                        <Download className="h-4 w-4" />
-                      </button>
-                    </div>
+            </thead>
+            <tbody className="divide-y">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-8 text-muted-foreground">
+                    {searchQuery ? 'No patients match your search.' : 'No patients registered yet.'}
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                filtered.map((patient) => (
+                  <tr
+                    key={patient.id}
+                    className="hover:bg-muted/20 transition-colors"
+                  >
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                          <User className="h-3.5 w-3.5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">{patient.full_name}</p>
+                          <p className="text-xs text-muted-foreground">@{patient.username}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-muted-foreground">
+                      {formatDate(patient.created_at)}
+                    </td>
+                    <td className="py-3 px-4">
+                      <Badge
+                        variant={patient.intake_status === 'complete' ? 'success' : 'warning'}
+                        dot
+                      >
+                        {patient.intake_status === 'complete' ? 'Complete' : 'In Progress'}
+                      </Badge>
+                    </td>
+                    <td className="py-3 px-4 text-foreground tabular-nums">
+                      {patient.sessions_count}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center justify-end gap-0.5">
+                        <button
+                          onClick={() => openDetail(patient)}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                          aria-label="View patient details"
+                          title="View details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDownloadReport(patient.user_id)}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-teal-700 transition-colors"
+                          aria-label="Download patient report"
+                          title="Download PDF"
+                        >
+                          <Download className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       {/* Detail Modal */}
       <Modal
@@ -260,14 +259,14 @@ export function PatientTable() {
           <div className="space-y-6 max-h-[70vh] overflow-y-auto">
             {/* Intake Data */}
             <div>
-              <h4 className="text-sm font-semibold text-medical-text flex items-center gap-2 mb-3">
+              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
                 <ClipboardCheck className="h-4 w-4 text-teal-600" />
                 Intake Data
               </h4>
               {intakeLoading ? (
                 <Spinner size="sm" />
               ) : patientIntake ? (
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-1.5">
                   {[
                     { label: 'Age', value: patientIntake.age },
                     { label: 'Sex', value: patientIntake.sex },
@@ -280,37 +279,39 @@ export function PatientTable() {
                     { label: 'Occupation', value: patientIntake.occupation },
                     { label: 'Status', value: patientIntake.intake_status },
                   ].map(({ label, value }) => (
-                    <div key={label} className="flex justify-between bg-gray-50 rounded px-3 py-2">
-                      <span className="text-xs text-medical-muted">{label}</span>
-                      <span className="text-xs font-medium text-medical-text">
+                    <div key={label} className="flex justify-between bg-muted/50 rounded-lg px-3 py-2">
+                      <span className="text-xs text-muted-foreground">{label}</span>
+                      <span className="text-xs font-medium text-foreground">
                         {value ?? '-'}
                       </span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-medical-muted">No intake data available.</p>
+                <p className="text-sm text-muted-foreground">No intake data available.</p>
               )}
             </div>
 
+            <Separator />
+
             {/* Sessions */}
             <div>
-              <h4 className="text-sm font-semibold text-medical-text flex items-center gap-2 mb-3">
-                <MessageSquare className="h-4 w-4 text-primary-600" />
+              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+                <MessageSquare className="h-4 w-4 text-primary-700" />
                 Chat Sessions ({patientSessions?.length || 0})
               </h4>
               {patientSessions && patientSessions.length > 0 ? (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {patientSessions.map((session) => (
                     <div
                       key={session.id}
-                      className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2"
+                      className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2.5"
                     >
                       <div>
-                        <p className="text-xs font-medium text-medical-text">
+                        <p className="text-xs font-medium text-foreground">
                           {session.session_type} session
                         </p>
-                        <p className="text-[10px] text-medical-muted">
+                        <p className="text-[11px] text-muted-foreground">
                           {formatDate(session.created_at)}
                         </p>
                       </div>
@@ -329,12 +330,14 @@ export function PatientTable() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-medical-muted">No sessions yet.</p>
+                <p className="text-sm text-muted-foreground">No sessions yet.</p>
               )}
             </div>
 
+            <Separator />
+
             {/* Actions */}
-            <div className="flex gap-3 pt-2 border-t border-medical-border">
+            <div className="flex gap-3">
               <Button
                 variant="outline"
                 size="sm"

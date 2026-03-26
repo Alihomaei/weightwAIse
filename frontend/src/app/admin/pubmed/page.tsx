@@ -8,8 +8,8 @@ export default function PubMedPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-medical-text">PubMed Integration</h1>
-        <p className="text-sm text-medical-muted mt-1">
+        <h1 className="text-xl font-semibold text-foreground">PubMed Integration</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Configure search queries and manage PubMed literature ingestion
         </p>
       </div>

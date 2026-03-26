@@ -8,8 +8,8 @@ export default function PatientsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-medical-text">Patient Records</h1>
-        <p className="text-sm text-medical-muted mt-1">
+        <h1 className="text-xl font-semibold text-foreground">Patient Records</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           View and manage patient records, intake data, and session history
         </p>
       </div>

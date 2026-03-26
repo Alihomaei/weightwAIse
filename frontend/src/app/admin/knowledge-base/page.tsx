@@ -6,10 +6,11 @@ import api from '@/lib/api';
 import { KBSource } from '@/lib/types';
 import { FileUploader } from '@/components/admin/FileUploader';
 import { KBStats } from '@/components/admin/KBStats';
-import { Card, CardTitle, CardDescription } from '@/components/ui/Card';
+import { Card, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
+import { Separator } from '@/components/ui/Separator';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToastStore } from '@/lib/store';
 import { formatDate } from '@/lib/utils';
@@ -44,7 +45,6 @@ export default function KnowledgeBasePage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch sources
   const { data: sources, isLoading } = useQuery<KBSource[]>({
     queryKey: ['kbSources'],
     queryFn: async () => {
@@ -53,7 +53,6 @@ export default function KnowledgeBasePage() {
     },
   });
 
-  // Delete source mutation
   const deleteMutation = useMutation({
     mutationFn: async (sourceId: string) => {
       await api.delete(`/api/admin/knowledge-base/sources/${sourceId}`);
@@ -90,8 +89,8 @@ export default function KnowledgeBasePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-medical-text">Knowledge Base</h1>
-          <p className="text-sm text-medical-muted mt-1">
+          <h1 className="text-xl font-semibold text-foreground">Knowledge Base</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Manage uploaded guidelines and documents
           </p>
         </div>
@@ -109,19 +108,21 @@ export default function KnowledgeBasePage() {
 
       {/* Source Table */}
       <Card padding="none">
-        <div className="px-5 py-4 border-b border-medical-border flex items-center justify-between">
-          <CardTitle className="mb-0">Guideline Documents</CardTitle>
+        <div className="px-6 py-4 flex items-center justify-between">
+          <CardTitle>Guideline Documents</CardTitle>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-medical-muted" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-3 py-1.5 rounded-lg border border-medical-border text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="pl-9 pr-3 py-1.5 rounded-lg border border-input bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground"
             />
           </div>
         </div>
+
+        <Separator />
 
         {isLoading ? (
           <div className="flex justify-center py-12">
@@ -131,36 +132,36 @@ export default function KnowledgeBasePage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b border-medical-border">
-                  <th className="text-left py-3 px-5 font-medium text-medical-muted">File</th>
-                  <th className="text-left py-3 px-4 font-medium text-medical-muted">Type</th>
-                  <th className="text-right py-3 px-4 font-medium text-medical-muted">Chunks</th>
-                  <th className="text-left py-3 px-4 font-medium text-medical-muted">Ingested</th>
-                  <th className="text-left py-3 px-4 font-medium text-medical-muted">Status</th>
-                  <th className="text-right py-3 px-5 font-medium text-medical-muted">Actions</th>
+                <tr className="bg-muted/30">
+                  <th className="text-left py-3 px-6 font-medium text-muted-foreground text-xs uppercase tracking-wider">File</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Type</th>
+                  <th className="text-right py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Chunks</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Ingested</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Status</th>
+                  <th className="text-right py-3 px-6 font-medium text-muted-foreground text-xs uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y">
                 {guidelineSources.map((source) => (
                   <tr
                     key={source.id}
-                    className="border-b border-gray-50 hover:bg-gray-50 transition-colors"
+                    className="hover:bg-muted/20 transition-colors"
                   >
-                    <td className="py-3 px-5">
-                      <div className="flex items-center gap-2">
-                        {typeIcons[source.source_type] || <FileType className="h-4 w-4 text-gray-400" />}
-                        <span className="font-medium text-medical-text truncate max-w-xs">
+                    <td className="py-3 px-6">
+                      <div className="flex items-center gap-2.5">
+                        {typeIcons[source.source_type] || <FileType className="h-4 w-4 text-muted-foreground" />}
+                        <span className="font-medium text-foreground truncate max-w-xs">
                           {source.filename || source.title || 'Untitled'}
                         </span>
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-medical-muted">
+                    <td className="py-3 px-4 text-muted-foreground">
                       {source.source_type.replace('guideline_', '').toUpperCase()}
                     </td>
-                    <td className="py-3 px-4 text-right text-medical-text">
+                    <td className="py-3 px-4 text-right text-foreground tabular-nums">
                       {source.total_chunks}
                     </td>
-                    <td className="py-3 px-4 text-medical-muted whitespace-nowrap">
+                    <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">
                       {formatDate(source.ingested_at)}
                     </td>
                     <td className="py-3 px-4">
@@ -171,10 +172,10 @@ export default function KnowledgeBasePage() {
                         {source.status}
                       </Badge>
                     </td>
-                    <td className="py-3 px-5 text-right">
+                    <td className="py-3 px-6 text-right">
                       <button
                         onClick={() => handleDelete(source)}
-                        className="p-1.5 rounded-lg text-medical-muted hover:bg-red-50 hover:text-red-600 transition-colors"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:bg-destructive/5 hover:text-destructive transition-colors"
                         aria-label="Delete source"
                         disabled={deleteMutation.isPending}
                       >
@@ -188,8 +189,8 @@ export default function KnowledgeBasePage() {
           </div>
         ) : (
           <div className="text-center py-12">
-            <FileText className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-medical-muted">No documents uploaded yet.</p>
+            <FileText className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">No documents uploaded yet.</p>
             <Button
               variant="outline"
               size="sm"

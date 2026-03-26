@@ -30,14 +30,14 @@ class GeminiService:
         self.flash = genai.GenerativeModel(
             settings.GEMINI_FLASH_MODEL,
             generation_config=genai.GenerationConfig(
-                temperature=0.7,
+                temperature=0.3,
                 max_output_tokens=2048,
             ),
         )
         self.pro = genai.GenerativeModel(
             settings.GEMINI_PRO_MODEL,
             generation_config=genai.GenerationConfig(
-                temperature=0.5,
+                temperature=0.2,
                 max_output_tokens=4096,
             ),
         )
@@ -147,6 +147,7 @@ class GeminiService:
         context_chunks: list[RetrievedChunk],
         language: str = "en",
         use_pro: bool = False,
+        clinic_info: str = "",
     ) -> dict:
         """Generate a consultation response with RAG context.
 
@@ -158,6 +159,7 @@ class GeminiService:
             decision_result=json.dumps(decision_result, indent=2),
             context=context,
             language=language,
+            clinic_info=clinic_info or "No clinic information configured.",
         )
 
         model = self.pro if use_pro else self.flash

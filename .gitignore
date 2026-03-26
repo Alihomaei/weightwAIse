@@ -41,3 +41,6 @@ htmlcov/
 # Build
 dist/
 build/
+backend/data/guidelines/images/
+backend/data/guidelines/*.pdf
+backend/data/weightwaise.db*

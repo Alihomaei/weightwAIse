@@ -71,7 +71,7 @@ async def dashboard_stats(
 # Knowledge Base
 # ---------------------------------------------------------------------------
 
-@router.post("/knowledge-base/upload", response_model=KBUploadResponse)
+@router.post("/knowledge-base/upload")
 async def upload_kb_document(
     request: Request,
     user: Annotated[User, admin_dep],
@@ -79,7 +79,10 @@ async def upload_kb_document(
     file: UploadFile = File(...),
     title: str = Form(None),
 ):
-    """Upload and ingest a document (PDF, PPTX, video, text/markdown)."""
+    """Upload a document and start ingestion in the background."""
+    import asyncio
+    from app.database import AsyncSessionLocal
+
     # Validate file size
     max_size = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
     content = await file.read()
@@ -102,15 +105,29 @@ async def upload_kb_document(
     if not pinecone_index:
         raise HTTPException(status_code=503, detail="Vector database not initialized")
 
-    result = await upload_document(
-        db=db,
-        file_path=file_path,
-        filename=filename,
-        title=title,
-        pinecone_index=pinecone_index,
-    )
+    # Run ingestion in background so it doesn't block the server
+    async def _ingest_background():
+        async with AsyncSessionLocal() as bg_db:
+            try:
+                result = await upload_document(
+                    db=bg_db,
+                    file_path=file_path,
+                    filename=filename,
+                    title=title,
+                    pinecone_index=pinecone_index,
+                )
+                logger.info("Background ingestion complete for %s: %s", filename, result)
+            except Exception as e:
+                logger.error("Background ingestion failed for %s: %s", filename, e, exc_info=True)
 
-    return KBUploadResponse(**result)
+    asyncio.create_task(_ingest_background())
+
+    return {
+        "status": "processing",
+        "message": f"File '{filename}' saved. Ingestion started in background.",
+        "filename": filename,
+        "file_path": file_path,
+    }
 
 
 @router.get("/knowledge-base/sources", response_model=list[KBSourceResponse])

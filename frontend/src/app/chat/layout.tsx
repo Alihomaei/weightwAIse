@@ -15,7 +15,6 @@ export default function ChatLayout({
   const { user, isLoading, setUser, setLoading } = useAuthStore();
 
   useEffect(() => {
-    // Check auth
     if (!isAuthenticated()) {
       router.push('/');
       return;
@@ -40,7 +39,7 @@ export default function ChatLayout({
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden bg-background">
       {children}
     </div>
   );

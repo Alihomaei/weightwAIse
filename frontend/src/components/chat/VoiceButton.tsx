@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { Mic, MicOff, Square } from 'lucide-react';
+import { Mic, Square } from 'lucide-react';
 
 interface VoiceButtonProps {
   isListening: boolean;
@@ -23,14 +23,14 @@ export function VoiceButton({
 
   const sizeStyles = {
     sm: 'h-8 w-8',
-    md: 'h-10 w-10',
-    lg: 'h-12 w-12',
+    md: 'h-9 w-9',
+    lg: 'h-11 w-11',
   };
 
   const iconSizes = {
-    sm: 'h-4 w-4',
-    md: 'h-5 w-5',
-    lg: 'h-6 w-6',
+    sm: 'h-3.5 w-3.5',
+    md: 'h-4 w-4',
+    lg: 'h-5 w-5',
   };
 
   return (
@@ -38,12 +38,12 @@ export function VoiceButton({
       type="button"
       onClick={onToggle}
       className={cn(
-        'relative rounded-full flex items-center justify-center transition-all duration-200',
-        'focus:outline-none focus:ring-2 focus:ring-offset-2',
+        'relative rounded-xl flex items-center justify-center transition-all duration-200',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         sizeStyles[size],
         isListening
-          ? 'bg-red-500 text-white focus:ring-red-400 hover:bg-red-600'
-          : 'bg-gray-100 text-medical-muted hover:bg-gray-200 focus:ring-primary-500',
+          ? 'bg-red-500 text-white hover:bg-red-600'
+          : 'text-muted-foreground hover:text-foreground hover:bg-muted',
         className
       )}
       aria-label={isListening ? 'Stop recording' : 'Start voice input'}
@@ -52,8 +52,8 @@ export function VoiceButton({
       {/* Recording animation rings */}
       {isListening && (
         <>
-          <span className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-25" />
-          <span className="absolute inset-[-4px] rounded-full border-2 border-red-300 animate-recording" />
+          <span className="absolute inset-0 rounded-xl bg-red-400 animate-ping opacity-20" />
+          <span className="absolute inset-[-3px] rounded-xl border-2 border-red-300 animate-recording" />
         </>
       )}
 

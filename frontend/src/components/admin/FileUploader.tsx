@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { useToastStore } from '@/lib/store';
 import { UploadResponse } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
+import { Progress } from '@/components/ui/Progress';
 import { cn } from '@/lib/utils';
 import { Upload, FileText, Film, FileType, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
@@ -55,7 +56,7 @@ export function FileUploader({ onUploadComplete }: FileUploaderProps) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: ACCEPTED_TYPES,
-    maxSize: 500 * 1024 * 1024, // 500MB for videos
+    maxSize: 500 * 1024 * 1024,
   });
 
   const removeFile = (index: number) => {
@@ -129,21 +130,21 @@ export function FileUploader({ onUploadComplete }: FileUploaderProps) {
         className={cn(
           'border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200',
           isDragActive
-            ? 'border-primary-400 bg-primary-50'
-            : 'border-medical-border bg-gray-50 hover:border-primary-300 hover:bg-primary-50/50'
+            ? 'border-primary-400 bg-primary-50/50'
+            : 'border-border bg-muted/30 hover:border-primary-300 hover:bg-muted/50'
         )}
       >
         <input {...getInputProps()} />
         <Upload
           className={cn(
-            'h-10 w-10 mx-auto mb-3',
-            isDragActive ? 'text-primary-500' : 'text-medical-muted'
+            'h-8 w-8 mx-auto mb-3',
+            isDragActive ? 'text-primary-500' : 'text-muted-foreground'
           )}
         />
-        <p className="text-sm font-medium text-medical-text mb-1">
+        <p className="text-sm font-medium text-foreground mb-1">
           {isDragActive ? 'Drop files here' : 'Drag & drop files here, or click to browse'}
         </p>
-        <p className="text-xs text-medical-muted">
+        <p className="text-xs text-muted-foreground">
           Supports PDF, PPTX, MP4, AVI, MOV, TXT, MD (max 500MB)
         </p>
       </div>
@@ -154,28 +155,22 @@ export function FileUploader({ onUploadComplete }: FileUploaderProps) {
           {files.map((fileState, index) => (
             <div
               key={`${fileState.file.name}-${index}`}
-              className="flex items-center gap-3 bg-white border border-medical-border rounded-lg px-4 py-3"
+              className="flex items-center gap-3 bg-card border rounded-xl px-4 py-3"
             >
-              {/* Icon */}
               {FILE_TYPE_ICONS[fileState.file.type] || (
-                <FileType className="h-5 w-5 text-gray-400" />
+                <FileType className="h-5 w-5 text-muted-foreground" />
               )}
 
-              {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-medical-text truncate">
+                <p className="text-sm font-medium text-foreground truncate">
                   {fileState.file.name}
                 </p>
-                <p className="text-xs text-medical-muted">
+                <p className="text-xs text-muted-foreground">
                   {(fileState.file.size / 1024 / 1024).toFixed(2)} MB
                 </p>
-                {/* Progress bar */}
                 {fileState.status === 'uploading' && (
-                  <div className="mt-1.5 w-full bg-gray-100 rounded-full h-1.5">
-                    <div
-                      className="bg-primary-600 h-1.5 rounded-full transition-all duration-300"
-                      style={{ width: `${fileState.progress}%` }}
-                    />
+                  <div className="mt-1.5">
+                    <Progress value={fileState.progress} />
                   </div>
                 )}
                 {fileState.status === 'success' && fileState.result && (
@@ -184,27 +179,26 @@ export function FileUploader({ onUploadComplete }: FileUploaderProps) {
                   </p>
                 )}
                 {fileState.status === 'error' && (
-                  <p className="text-xs text-red-600 mt-1">{fileState.error}</p>
+                  <p className="text-xs text-destructive mt-1">{fileState.error}</p>
                 )}
               </div>
 
-              {/* Status */}
               {fileState.status === 'uploading' && (
-                <Loader2 className="h-5 w-5 text-primary-600 animate-spin" />
+                <Loader2 className="h-5 w-5 text-primary-700 animate-spin shrink-0" />
               )}
               {fileState.status === 'success' && (
-                <CheckCircle className="h-5 w-5 text-emerald-500" />
+                <CheckCircle className="h-5 w-5 text-emerald-500 shrink-0" />
               )}
               {fileState.status === 'error' && (
-                <AlertCircle className="h-5 w-5 text-red-500" />
+                <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
               )}
               {fileState.status === 'pending' && (
                 <button
                   onClick={() => removeFile(index)}
-                  className="p-1 rounded hover:bg-gray-100 transition-colors"
+                  className="p-1 rounded-md hover:bg-muted transition-colors shrink-0"
                   aria-label="Remove file"
                 >
-                  <X className="h-4 w-4 text-medical-muted" />
+                  <X className="h-4 w-4 text-muted-foreground" />
                 </button>
               )}
             </div>

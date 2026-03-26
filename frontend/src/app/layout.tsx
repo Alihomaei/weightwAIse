@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   description:
     'An AI-powered bariatric surgery consultant using multimodal RAG to provide evidence-based guidance for weight management and metabolic surgery decisions.',
   keywords: ['bariatric surgery', 'AI consultant', 'weight management', 'metabolic surgery'],
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({
@@ -16,11 +19,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      </head>
-      <body className="min-h-screen bg-medical-bg antialiased">
+      <body className="min-h-screen bg-background antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

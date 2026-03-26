@@ -7,17 +7,17 @@ import { ToastType } from '@/lib/types';
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 
 const iconMap: Record<ToastType, React.ReactNode> = {
-  success: <CheckCircle className="h-5 w-5 text-emerald-500" />,
-  error: <AlertCircle className="h-5 w-5 text-red-500" />,
-  warning: <AlertTriangle className="h-5 w-5 text-amber-500" />,
-  info: <Info className="h-5 w-5 text-blue-500" />,
+  success: <CheckCircle className="h-4 w-4 text-emerald-600" />,
+  error: <AlertCircle className="h-4 w-4 text-red-600" />,
+  warning: <AlertTriangle className="h-4 w-4 text-amber-600" />,
+  info: <Info className="h-4 w-4 text-blue-600" />,
 };
 
 const bgStyles: Record<ToastType, string> = {
-  success: 'border-emerald-200 bg-emerald-50',
-  error: 'border-red-200 bg-red-50',
-  warning: 'border-amber-200 bg-amber-50',
-  info: 'border-blue-200 bg-blue-50',
+  success: 'border-emerald-200/60 bg-white',
+  error: 'border-red-200/60 bg-white',
+  warning: 'border-amber-200/60 bg-white',
+  info: 'border-blue-200/60 bg-white',
 };
 
 export function ToastContainer() {
@@ -34,20 +34,20 @@ export function ToastContainer() {
         <div
           key={toast.id}
           className={cn(
-            'flex items-start gap-3 p-4 rounded-lg border shadow-lg pointer-events-auto',
+            'flex items-start gap-3 p-4 rounded-xl border shadow-lg pointer-events-auto',
             'animate-slide-in-right',
             bgStyles[toast.type]
           )}
           role="alert"
         >
           <span className="shrink-0 mt-0.5">{iconMap[toast.type]}</span>
-          <p className="flex-1 text-sm text-medical-text">{toast.message}</p>
+          <p className="flex-1 text-sm text-foreground">{toast.message}</p>
           <button
             onClick={() => removeToast(toast.id)}
-            className="shrink-0 p-0.5 rounded hover:bg-black/5 transition-colors"
+            className="shrink-0 p-0.5 rounded-md hover:bg-muted transition-colors"
             aria-label="Dismiss notification"
           >
-            <X className="h-4 w-4 text-medical-muted" />
+            <X className="h-3.5 w-3.5 text-muted-foreground" />
           </button>
         </div>
       ))}

@@ -220,6 +220,28 @@ async def _handle_intake_phase(
     return result
 
 
+async def _get_clinic_info(db: AsyncSession) -> str:
+    """Fetch clinic info from admin config."""
+    from app.models.admin_config import AdminConfig
+    try:
+        result = await db.execute(
+            select(AdminConfig).where(AdminConfig.key == "clinic_info")
+        )
+        config = result.scalar_one_or_none()
+        if config:
+            info = json.loads(config.value) if isinstance(config.value, str) else config.value
+            parts = []
+            if info.get("name"): parts.append(f"Clinic: {info['name']}")
+            if info.get("address"): parts.append(f"Address: {info['address']}")
+            if info.get("phone"): parts.append(f"Phone: {info['phone']}")
+            if info.get("hours"): parts.append(f"Hours: {info['hours']}")
+            if info.get("booking_url"): parts.append(f"Book online: {info['booking_url']}")
+            return "\n".join(parts) if parts else "No clinic information configured yet."
+    except Exception:
+        pass
+    return "No clinic information configured yet. Recommend the patient contact their local bariatric surgery center."
+
+
 async def _handle_consultation_phase(
     db: AsyncSession,
     session: ChatSession,
@@ -261,6 +283,9 @@ async def _handle_consultation_phase(
         except Exception as e:
             logger.error("RAG retrieval failed: %s", e)
 
+    # Fetch clinic info for referrals
+    clinic_info = await _get_clinic_info(db)
+
     # Check if this is a surgery-specific discussion
     surgery_types = decision_result.get("surgery_types_to_discuss", [])
     if surgery_types and _is_surgery_question(user_message):
@@ -281,6 +306,7 @@ async def _handle_consultation_phase(
             context_chunks=context_chunks,
             language=language,
             use_pro=use_pro,
+            clinic_info=clinic_info,
         )
 
     response_text = llm_result["response_text"]
@@ -325,30 +351,18 @@ def _get_welcome_message(session_type: str, language: str) -> str:
     if language == "es":
         if session_type == "intake":
             return (
-                "¡Hola! Soy su consultor virtual de cirugía bariátrica y metabólica. "
-                "Estoy aquí para ayudarle a comprender sus opciones basándome en las "
-                "guías clínicas más recientes.\n\n"
-                "Primero, necesito recopilar un poco de información sobre su historial "
-                "médico. Esto me ayudará a proporcionarle orientación personalizada.\n\n"
-                "¿Podría comenzar diciéndome su edad y sexo?"
+                "¡Hola, bienvenido a la Clínica WeightwAIse! ¿Cómo podemos ayudarle hoy?"
             )
         else:
             return (
-                "¡Bienvenido de nuevo! Estoy listo para continuar nuestra consulta. "
-                "¿En qué puedo ayudarle hoy?"
+                "¡Bienvenido de nuevo a WeightwAIse! ¿En qué puedo ayudarle hoy?"
             )
     else:
         if session_type == "intake":
             return (
-                "Hello! I'm your virtual bariatric and metabolic surgery consultant. "
-                "I'm here to help you understand your options based on the latest "
-                "clinical guidelines.\n\n"
-                "First, I need to gather some information about your medical history. "
-                "This will help me provide personalized guidance.\n\n"
-                "Could you start by telling me your age and sex?"
+                "Hey, welcome to WeightwAIse Clinic. How can we help you today?"
             )
         else:
             return (
-                "Welcome back! I'm ready to continue our consultation. "
-                "How can I help you today?"
+                "Welcome back to WeightwAIse! How can I help you today?"
             )

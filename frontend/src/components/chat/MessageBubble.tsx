@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
 import { ChatMessage, Citation } from '@/lib/types';
-import { User, Bot, Mic, Volume2 } from 'lucide-react';
+import { Volume2, Mic } from 'lucide-react';
 import { CitationPopover } from './CitationPopover';
 
 interface MessageBubbleProps {
@@ -30,7 +30,6 @@ export function MessageBubble({ message, isStreaming = false, onSpeak, isVoiceIn
 
   // Replace citation markers [N] with clickable elements
   const renderContent = (content: string) => {
-    // Split content by citation markers like [1], [2], etc.
     const parts = content.split(/(\[\d+\])/g);
 
     return parts.map((part, i) => {
@@ -42,7 +41,7 @@ export function MessageBubble({ message, isStreaming = false, onSpeak, isVoiceIn
             <button
               key={i}
               onClick={(e) => handleCitationClick(e, idx)}
-              className="inline-flex items-center justify-center h-5 min-w-[20px] px-1 mx-0.5 text-[10px] font-bold text-primary-700 bg-primary-100 rounded hover:bg-primary-200 transition-colors align-super"
+              className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 mx-0.5 text-[10px] font-semibold text-primary-700 bg-primary-50 border border-primary-200/60 rounded hover:bg-primary-100 transition-colors align-super cursor-pointer"
               aria-label={`Citation ${idx + 1}`}
             >
               {idx + 1}
@@ -57,29 +56,17 @@ export function MessageBubble({ message, isStreaming = false, onSpeak, isVoiceIn
   return (
     <div
       className={cn(
-        'flex gap-3 animate-slide-up',
-        isUser ? 'flex-row-reverse' : 'flex-row'
+        'flex gap-3 animate-fade-in',
+        isUser ? 'justify-end' : 'justify-start'
       )}
     >
-      {/* Avatar */}
-      <div
-        className={cn(
-          'shrink-0 h-8 w-8 rounded-full flex items-center justify-center',
-          isUser
-            ? 'bg-primary-100 text-primary-700'
-            : 'bg-teal-100 text-teal-700'
-        )}
-      >
-        {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
-      </div>
-
       {/* Message Content */}
       <div
         className={cn(
-          'max-w-[75%] rounded-2xl px-4 py-3',
+          'max-w-[80%] rounded-2xl px-4 py-3',
           isUser
-            ? 'bg-primary-700 text-white rounded-br-md'
-            : 'bg-white border border-medical-border text-medical-text rounded-bl-md shadow-sm'
+            ? 'bg-primary-800 text-white'
+            : 'bg-muted/60 text-foreground'
         )}
       >
         {/* Voice input indicator */}
@@ -92,11 +79,9 @@ export function MessageBubble({ message, isStreaming = false, onSpeak, isVoiceIn
 
         {/* Content */}
         {isAssistant ? (
-          <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-medical-text">
+          <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground text-sm leading-relaxed">
             {message.citations.length > 0 ? (
-              <div className="text-sm leading-relaxed">
-                {renderContent(message.content)}
-              </div>
+              <div>{renderContent(message.content)}</div>
             ) : (
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
@@ -107,7 +92,7 @@ export function MessageBubble({ message, isStreaming = false, onSpeak, isVoiceIn
                   li: ({ children }) => <li className="my-0.5">{children}</li>,
                   strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
                   a: ({ href, children }) => (
-                    <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                    <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary-700 hover:underline">
                       {children}
                     </a>
                   ),
@@ -117,7 +102,7 @@ export function MessageBubble({ message, isStreaming = false, onSpeak, isVoiceIn
               </ReactMarkdown>
             )}
             {isStreaming && (
-              <span className="inline-block w-2 h-4 bg-teal-500 animate-pulse ml-0.5 align-text-bottom" />
+              <span className="inline-block w-1.5 h-4 bg-teal-500 animate-pulse ml-0.5 rounded-sm align-text-bottom" />
             )}
           </div>
         ) : (
@@ -126,17 +111,17 @@ export function MessageBubble({ message, isStreaming = false, onSpeak, isVoiceIn
 
         {/* Actions for assistant messages */}
         {isAssistant && !isStreaming && onSpeak && (
-          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
+          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/40">
             <button
               onClick={() => onSpeak(message.content)}
-              className="flex items-center gap-1 text-xs text-medical-muted hover:text-teal-600 transition-colors"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-teal-600 transition-colors"
               aria-label="Read message aloud"
             >
-              <Volume2 className="h-3.5 w-3.5" />
+              <Volume2 className="h-3 w-3" />
               <span>Listen</span>
             </button>
             {message.model_used && (
-              <span className="text-[10px] text-gray-400 ml-auto">
+              <span className="text-[10px] text-muted-foreground/60 ml-auto">
                 {message.model_used}
               </span>
             )}

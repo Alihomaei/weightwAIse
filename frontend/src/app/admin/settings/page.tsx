@@ -7,6 +7,7 @@ import { ClinicInfo, SystemPrompts } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardTitle, CardDescription } from '@/components/ui/Card';
+import { Separator } from '@/components/ui/Separator';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToastStore } from '@/lib/store';
 import { Building2, Save, FileCode } from 'lucide-react';
@@ -15,8 +16,7 @@ export default function SettingsPage() {
   const queryClient = useQueryClient();
   const addToast = useToastStore((s) => s.addToast);
 
-  // ─── Clinic Info ──────────────────────────────────────────────────────
-
+  // Clinic Info
   const [clinicInfo, setClinicInfo] = useState<ClinicInfo>({
     name: '',
     address: '',
@@ -52,8 +52,7 @@ export default function SettingsPage() {
     },
   });
 
-  // ─── System Prompts ───────────────────────────────────────────────────
-
+  // System Prompts
   const [prompts, setPrompts] = useState<SystemPrompts>({
     intake: '',
     consultation: '',
@@ -99,23 +98,27 @@ export default function SettingsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-medical-text">Settings</h1>
-        <p className="text-sm text-medical-muted mt-1">
+        <h1 className="text-xl font-semibold text-foreground">Settings</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Configure clinic information and system behavior
         </p>
       </div>
 
       {/* Clinic Information */}
       <Card>
-        <div className="flex items-center gap-2 mb-4">
-          <Building2 className="h-5 w-5 text-primary-600" />
-          <CardTitle className="mb-0">Clinic Information</CardTitle>
+        <div className="flex items-center gap-2.5 mb-1">
+          <div className="p-1.5 rounded-lg bg-primary-50">
+            <Building2 className="h-4 w-4 text-primary-800" />
+          </div>
+          <CardTitle>Clinic Information</CardTitle>
         </div>
         <CardDescription>
           This information is shown to patients when a clinic visit is recommended.
         </CardDescription>
 
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Separator className="my-4" />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Clinic Name"
             value={clinicInfo.name}
@@ -150,7 +153,7 @@ export default function SettingsPage() {
           />
         </div>
 
-        <div className="mt-4">
+        <div className="mt-5">
           <Button
             variant="primary"
             onClick={() => saveClinic.mutate()}
@@ -164,68 +167,72 @@ export default function SettingsPage() {
 
       {/* System Prompts */}
       <Card>
-        <div className="flex items-center gap-2 mb-4">
-          <FileCode className="h-5 w-5 text-teal-600" />
-          <CardTitle className="mb-0">System Prompts</CardTitle>
+        <div className="flex items-center gap-2.5 mb-1">
+          <div className="p-1.5 rounded-lg bg-teal-50">
+            <FileCode className="h-4 w-4 text-teal-700" />
+          </div>
+          <CardTitle>System Prompts</CardTitle>
         </div>
         <CardDescription>
           Customize the LLM system prompts for each conversation phase. These control the AI&apos;s behavior and tone.
         </CardDescription>
 
-        <div className="mt-4 space-y-5">
+        <Separator className="my-4" />
+
+        <div className="space-y-5">
           {/* Intake Prompt */}
           <div>
-            <label className="block text-sm font-medium text-medical-text mb-1.5">
+            <label className="block text-sm font-medium text-foreground mb-1.5">
               Intake Phase Prompt
             </label>
             <textarea
               value={prompts.intake}
               onChange={(e) => setPrompts({ ...prompts, intake: e.target.value })}
               rows={6}
-              className="w-full rounded-lg border border-medical-border px-3 py-2 text-sm text-medical-text font-mono bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-y"
+              className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground resize-y"
               placeholder="System prompt for the patient intake phase..."
             />
-            <p className="text-xs text-medical-muted mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Guides the AI during patient data collection. Include instructions about which fields to gather.
             </p>
           </div>
 
           {/* Consultation Prompt */}
           <div>
-            <label className="block text-sm font-medium text-medical-text mb-1.5">
+            <label className="block text-sm font-medium text-foreground mb-1.5">
               Consultation Phase Prompt
             </label>
             <textarea
               value={prompts.consultation}
               onChange={(e) => setPrompts({ ...prompts, consultation: e.target.value })}
               rows={6}
-              className="w-full rounded-lg border border-medical-border px-3 py-2 text-sm text-medical-text font-mono bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-y"
+              className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground resize-y"
               placeholder="System prompt for the consultation/recommendation phase..."
             />
-            <p className="text-xs text-medical-muted mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Guides the AI during clinical assessment and treatment recommendation.
             </p>
           </div>
 
           {/* Surgery Discussion Prompt */}
           <div>
-            <label className="block text-sm font-medium text-medical-text mb-1.5">
+            <label className="block text-sm font-medium text-foreground mb-1.5">
               Surgery Discussion Prompt
             </label>
             <textarea
               value={prompts.surgery_discussion}
               onChange={(e) => setPrompts({ ...prompts, surgery_discussion: e.target.value })}
               rows={6}
-              className="w-full rounded-lg border border-medical-border px-3 py-2 text-sm text-medical-text font-mono bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-y"
+              className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground resize-y"
               placeholder="System prompt for discussing surgical options..."
             />
-            <p className="text-xs text-medical-muted mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Guides the AI when discussing specific surgical procedures, risks, and benefits.
             </p>
           </div>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-5">
           <Button
             variant="primary"
             onClick={() => savePrompts.mutate()}

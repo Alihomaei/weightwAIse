@@ -27,12 +27,12 @@ from app.services.auth_service import (
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(
     body: RegisterRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Register a new user (admin or patient)."""
+    """Register a new user (admin or patient) and return tokens."""
     # Check if username already exists
     result = await db.execute(
         select(User).where(User.username == body.username)
@@ -53,15 +53,36 @@ async def register(
     db.add(user)
     await db.flush()
     await db.refresh(user)
-    return user
+
+    tokens = TokenResponse(
+        access_token=create_access_token(user.id, user.role),
+        refresh_token=create_refresh_token(user.id, user.role),
+    )
+
+    return {
+        "user": {
+            "id": str(user.id),
+            "username": user.username,
+            "role": user.role,
+            "full_name": user.full_name,
+            "language_preference": user.language_preference,
+            "created_at": str(user.created_at),
+            "updated_at": str(user.updated_at),
+        },
+        "tokens": {
+            "access_token": tokens.access_token,
+            "refresh_token": tokens.refresh_token,
+            "token_type": tokens.token_type,
+        },
+    }
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login")
 async def login(
     body: LoginRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Authenticate and return JWT tokens."""
+    """Authenticate and return JWT tokens + user profile."""
     result = await db.execute(
         select(User).where(User.username == body.username)
     )
@@ -73,10 +94,27 @@ async def login(
             detail="Invalid username or password",
         )
 
-    return TokenResponse(
+    tokens = TokenResponse(
         access_token=create_access_token(user.id, user.role),
         refresh_token=create_refresh_token(user.id, user.role),
     )
+
+    return {
+        "user": {
+            "id": str(user.id),
+            "username": user.username,
+            "role": user.role,
+            "full_name": user.full_name,
+            "language_preference": user.language_preference,
+            "created_at": str(user.created_at),
+            "updated_at": str(user.updated_at),
+        },
+        "tokens": {
+            "access_token": tokens.access_token,
+            "refresh_token": tokens.refresh_token,
+            "token_type": tokens.token_type,
+        },
+    }
 
 
 @router.post("/refresh", response_model=TokenResponse)

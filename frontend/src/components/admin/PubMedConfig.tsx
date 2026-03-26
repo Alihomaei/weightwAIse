@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { Separator } from '@/components/ui/Separator';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToastStore } from '@/lib/store';
 import { formatDateTime, formatRelativeTime } from '@/lib/utils';
@@ -30,7 +31,6 @@ export function PubMedConfigPanel() {
   const [localQueries, setLocalQueries] = useState<string[]>([]);
   const [maxResults, setMaxResults] = useState(50);
 
-  // Fetch current config
   const { data: config, isLoading: configLoading } = useQuery<PubMedConfigType>({
     queryKey: ['pubmedConfig'],
     queryFn: async () => {
@@ -39,7 +39,6 @@ export function PubMedConfigPanel() {
     },
   });
 
-  // Fetch update history
   const { data: history, isLoading: historyLoading } = useQuery<PubMedUpdateHistory[]>({
     queryKey: ['pubmedHistory'],
     queryFn: async () => {
@@ -48,7 +47,6 @@ export function PubMedConfigPanel() {
     },
   });
 
-  // Fetch ingested papers
   const { data: papers, isLoading: papersLoading } = useQuery<KBSource[]>({
     queryKey: ['pubmedPapers'],
     queryFn: async () => {
@@ -66,7 +64,6 @@ export function PubMedConfigPanel() {
     }
   }, [config]);
 
-  // Save config mutation
   const saveConfig = useMutation({
     mutationFn: async () => {
       await api.put('/api/admin/pubmed/config', {
@@ -83,7 +80,6 @@ export function PubMedConfigPanel() {
     },
   });
 
-  // Trigger update mutation
   const triggerUpdate = useMutation({
     mutationFn: async () => {
       const res = await api.post('/api/admin/pubmed/update');
@@ -131,8 +127,9 @@ export function PubMedConfigPanel() {
           Configure the PubMed search queries used to find relevant literature.
         </CardDescription>
 
-        <div className="mt-4 space-y-3">
-          {/* Add new query */}
+        <Separator className="my-4" />
+
+        <div className="space-y-3">
           <div className="flex gap-2">
             <Input
               placeholder="e.g., bariatric surgery outcomes 2024"
@@ -149,34 +146,32 @@ export function PubMedConfigPanel() {
             </Button>
           </div>
 
-          {/* Query list */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {localQueries.map((query, index) => (
               <div
                 key={index}
-                className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2"
+                className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2"
               >
-                <Search className="h-4 w-4 text-medical-muted shrink-0" />
-                <span className="text-sm text-medical-text flex-1">{query}</span>
+                <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="text-sm text-foreground flex-1">{query}</span>
                 <button
                   onClick={() => removeQuery(index)}
-                  className="p-1 rounded hover:bg-gray-200 transition-colors"
+                  className="p-1 rounded-md hover:bg-muted transition-colors"
                   aria-label={`Remove query: ${query}`}
                 >
-                  <X className="h-3.5 w-3.5 text-medical-muted" />
+                  <X className="h-3 w-3 text-muted-foreground" />
                 </button>
               </div>
             ))}
             {localQueries.length === 0 && (
-              <p className="text-sm text-medical-muted text-center py-4">
+              <p className="text-sm text-muted-foreground text-center py-4">
                 No search queries configured. Add one above.
               </p>
             )}
           </div>
 
-          {/* Max results */}
           <div className="flex items-center gap-3">
-            <label className="text-sm text-medical-text whitespace-nowrap">
+            <label className="text-sm text-foreground whitespace-nowrap">
               Max results per query:
             </label>
             <Input
@@ -189,7 +184,6 @@ export function PubMedConfigPanel() {
             />
           </div>
 
-          {/* Save and Update buttons */}
           <div className="flex gap-3 pt-2">
             <Button
               variant="primary"
@@ -213,17 +207,18 @@ export function PubMedConfigPanel() {
       {/* Update History */}
       <Card>
         <CardTitle>Update History</CardTitle>
-        <div className="mt-4">
+        <Separator className="my-4" />
+        <div>
           {historyLoading ? (
             <div className="flex justify-center py-4">
               <Spinner size="sm" />
             </div>
           ) : history && history.length > 0 ? (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {history.slice(0, 10).map((entry) => (
                 <div
                   key={entry.id}
-                  className="flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-lg text-sm"
+                  className="flex items-center gap-3 px-3 py-2.5 bg-muted/30 rounded-lg text-sm"
                 >
                   {entry.errors.length === 0 ? (
                     <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
@@ -231,11 +226,11 @@ export function PubMedConfigPanel() {
                     <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
                   )}
                   <div className="flex-1">
-                    <span className="font-medium text-medical-text">
+                    <span className="font-medium text-foreground">
                       {entry.new_papers} papers
                     </span>
-                    <span className="text-medical-muted mx-1">/</span>
-                    <span className="text-medical-muted">
+                    <span className="text-muted-foreground mx-1">/</span>
+                    <span className="text-muted-foreground">
                       {entry.total_chunks} chunks
                     </span>
                     {entry.errors.length > 0 && (
@@ -244,7 +239,7 @@ export function PubMedConfigPanel() {
                       </span>
                     )}
                   </div>
-                  <span className="text-xs text-medical-muted flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     {formatRelativeTime(entry.completed_at)}
                   </span>
@@ -252,7 +247,7 @@ export function PubMedConfigPanel() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-medical-muted text-center py-4">
+            <p className="text-sm text-muted-foreground text-center py-4">
               No update history yet.
             </p>
           )}
@@ -260,55 +255,58 @@ export function PubMedConfigPanel() {
       </Card>
 
       {/* Ingested Papers Table */}
-      <Card>
-        <CardTitle>Ingested Papers</CardTitle>
-        <div className="mt-4 overflow-x-auto">
+      <Card padding="none">
+        <div className="px-6 py-4">
+          <CardTitle>Ingested Papers</CardTitle>
+        </div>
+        <Separator />
+        <div className="overflow-x-auto">
           {papersLoading ? (
-            <div className="flex justify-center py-4">
+            <div className="flex justify-center py-8">
               <Spinner size="sm" />
             </div>
           ) : papers && papers.length > 0 ? (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-medical-border">
-                  <th className="text-left py-2 px-3 font-medium text-medical-muted">Title</th>
-                  <th className="text-left py-2 px-3 font-medium text-medical-muted">PMID</th>
-                  <th className="text-left py-2 px-3 font-medium text-medical-muted">Authors</th>
-                  <th className="text-left py-2 px-3 font-medium text-medical-muted">Date</th>
-                  <th className="text-right py-2 px-3 font-medium text-medical-muted">Chunks</th>
+                <tr className="bg-muted/30">
+                  <th className="text-left py-3 px-6 font-medium text-muted-foreground text-xs uppercase tracking-wider">Title</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">PMID</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Authors</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Date</th>
+                  <th className="text-right py-3 px-6 font-medium text-muted-foreground text-xs uppercase tracking-wider">Chunks</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y">
                 {papers.map((paper) => (
                   <tr
                     key={paper.id}
-                    className="border-b border-gray-50 hover:bg-gray-50"
+                    className="hover:bg-muted/20 transition-colors"
                   >
-                    <td className="py-2.5 px-3 max-w-xs truncate text-medical-text">
+                    <td className="py-3 px-6 max-w-xs truncate text-foreground">
                       {paper.title || 'Untitled'}
                     </td>
-                    <td className="py-2.5 px-3">
+                    <td className="py-3 px-4">
                       {paper.pubmed_id ? (
                         <a
                           href={`https://pubmed.ncbi.nlm.nih.gov/${paper.pubmed_id}/`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-primary-600 hover:underline flex items-center gap-1"
+                          className="text-primary-700 hover:underline flex items-center gap-1"
                         >
                           {paper.pubmed_id}
                           <ExternalLink className="h-3 w-3" />
                         </a>
                       ) : (
-                        '-'
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </td>
-                    <td className="py-2.5 px-3 max-w-[200px] truncate text-medical-muted">
+                    <td className="py-3 px-4 max-w-[200px] truncate text-muted-foreground">
                       {paper.authors || '-'}
                     </td>
-                    <td className="py-2.5 px-3 text-medical-muted whitespace-nowrap">
+                    <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">
                       {paper.publication_date || '-'}
                     </td>
-                    <td className="py-2.5 px-3 text-right text-medical-text">
+                    <td className="py-3 px-6 text-right text-foreground tabular-nums">
                       {paper.total_chunks}
                     </td>
                   </tr>
@@ -316,9 +314,11 @@ export function PubMedConfigPanel() {
               </tbody>
             </table>
           ) : (
-            <p className="text-sm text-medical-muted text-center py-4">
-              No PubMed papers ingested yet.
-            </p>
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground">
+                No PubMed papers ingested yet.
+              </p>
+            </div>
           )}
         </div>
       </Card>

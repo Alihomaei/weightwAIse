@@ -72,11 +72,12 @@ Clinicians face:
 | Frontend | Next.js 14, TypeScript, Tailwind CSS |
 | Voice | Web Speech API |
 | Backend | Python 3.11+, FastAPI, Uvicorn |
-| LLM (chat) | Gemini 2.5 Flash |
-| LLM (reasoning) | Gemini 3.1 Pro |
-| Embeddings | Gemini Embedding 2 (multimodal) |
+| LLM (chat) | Gemini 2.5 Flash (temp 0.3) |
+| LLM (reasoning) | Gemini 3.1 Pro Preview (temp 0.2) |
+| Embeddings | Gemini Embedding 2 Preview (multimodal, 3072 dims) |
 | Vector DB | Pinecone (single index, metadata filters) |
-| Relational DB | SQLite (dev) / PostgreSQL (prod) |
+| Relational DB | SQLite with WAL mode (dev) / PostgreSQL (prod) |
+| UI Framework | shadcn/ui (Radix primitives + Tailwind) |
 | Document Processing | PyMuPDF, python-pptx, OpenCV, Tesseract |
 | PubMed | NCBI E-utilities + PMC OA API |
 | PDF Reports | ReportLab |

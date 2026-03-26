@@ -4,7 +4,6 @@ import React from 'react';
 import { ChatSession } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
 import { Card, CardTitle } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
 import { Download, ArrowRight, CheckCircle } from 'lucide-react';
 import api from '@/lib/api';
 import { useToastStore } from '@/lib/store';
@@ -15,9 +14,9 @@ interface SessionSummaryProps {
 }
 
 const decisionLabels: Record<string, { label: string; color: string }> = {
-  lifestyle: { label: 'Lifestyle Modification', color: 'bg-emerald-100 text-emerald-700' },
-  pharmacotherapy: { label: 'Pharmacotherapy', color: 'bg-blue-100 text-blue-700' },
-  surgery: { label: 'Surgical Consultation', color: 'bg-amber-100 text-amber-700' },
+  lifestyle: { label: 'Lifestyle Modification', color: 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' },
+  pharmacotherapy: { label: 'Pharmacotherapy', color: 'bg-blue-50 text-blue-700 border border-blue-200/60' },
+  surgery: { label: 'Surgical Consultation', color: 'bg-amber-50 text-amber-700 border border-amber-200/60' },
 };
 
 export function SessionSummary({ session, onNewSession }: SessionSummaryProps) {
@@ -50,21 +49,21 @@ export function SessionSummary({ session, onNewSession }: SessionSummaryProps) {
   return (
     <div className="animate-slide-up space-y-4 max-w-lg mx-auto">
       <Card padding="lg" className="text-center">
-        <div className="flex justify-center mb-4">
-          <div className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center">
-            <CheckCircle className="h-8 w-8 text-emerald-600" />
+        <div className="flex justify-center mb-5">
+          <div className="h-14 w-14 rounded-full bg-emerald-50 border border-emerald-200/60 flex items-center justify-center">
+            <CheckCircle className="h-7 w-7 text-emerald-600" />
           </div>
         </div>
 
-        <CardTitle className="text-xl mb-2">Session Complete</CardTitle>
-        <p className="text-sm text-medical-muted mb-6">
+        <CardTitle className="text-lg mb-2">Session Complete</CardTitle>
+        <p className="text-sm text-muted-foreground mb-6">
           Thank you for completing your consultation. Here is a summary of your session.
         </p>
 
         {/* Decision Path */}
         {decision && (
-          <div className="mb-4">
-            <p className="text-xs text-medical-muted uppercase tracking-wider mb-2">
+          <div className="mb-5">
+            <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-2 font-medium">
               Recommended Path
             </p>
             <span className={`inline-block px-4 py-1.5 rounded-full text-sm font-medium ${decision.color}`}>
@@ -75,18 +74,18 @@ export function SessionSummary({ session, onNewSession }: SessionSummaryProps) {
 
         {/* Summary Text */}
         {session.recommendation_summary && (
-          <div className="text-left bg-gray-50 rounded-lg p-4 mb-6">
-            <p className="text-xs text-medical-muted uppercase tracking-wider mb-2">
+          <div className="text-left bg-muted/50 rounded-xl p-4 mb-6">
+            <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-2 font-medium">
               Summary
             </p>
-            <p className="text-sm text-medical-text leading-relaxed whitespace-pre-wrap">
+            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
               {session.recommendation_summary}
             </p>
           </div>
         )}
 
         {/* Actions */}
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5">
           <Button
             variant="primary"
             size="lg"

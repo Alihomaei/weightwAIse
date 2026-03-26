@@ -4,15 +4,15 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { RegisterForm } from '@/components/auth/RegisterForm';
-import { useAuthStore, useLanguageStore } from '@/lib/store';
-import { isAuthenticated } from '@/lib/auth';
+import { useLanguageStore } from '@/lib/store';
+import { useAuth } from '@/hooks/useAuth';
 import { FullPageSpinner } from '@/components/ui/Spinner';
-import { cn } from '@/lib/utils';
-import { Globe, Activity, Shield, MessageCircle, Stethoscope } from 'lucide-react';
+import Image from 'next/image';
+import { Globe, Activity, Shield, MessageCircle } from 'lucide-react';
 
 export default function LandingPage() {
   const router = useRouter();
-  const { user, isLoading } = useAuthStore();
+  const { user, isLoading } = useAuth();
   const { language, setLanguage } = useLanguageStore();
   const [showRegister, setShowRegister] = useState(false);
 
@@ -47,18 +47,15 @@ export default function LandingPage() {
 
         <div className="relative z-10">
           {/* Logo */}
-          <div className="flex items-center gap-3 mb-2">
-            <div className="h-12 w-12 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20">
-              <Stethoscope className="h-7 w-7 text-teal-300" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                weight<span className="text-teal-300">w</span>AIse
-              </h1>
-              <p className="text-sm text-primary-200">
-                AI-Powered Bariatric Surgery Consultant
-              </p>
-            </div>
+          <div className="flex items-center gap-4 mb-2">
+            <Image
+              src="/logo.png"
+              alt="WeightwAIse Logo"
+              width={180}
+              height={80}
+              className="brightness-0 invert"
+              priority
+            />
           </div>
         </div>
 
@@ -115,10 +112,13 @@ export default function LandingPage() {
         <div className="flex justify-between items-center px-6 py-4">
           {/* Mobile logo */}
           <div className="flex items-center gap-2 lg:hidden">
-            <Stethoscope className="h-6 w-6 text-primary-700" />
-            <span className="text-lg font-bold text-medical-text">
-              weight<span className="text-teal-600">w</span>AIse
-            </span>
+            <Image
+              src="/logo.png"
+              alt="WeightwAIse Logo"
+              width={120}
+              height={53}
+              priority
+            />
           </div>
           <div className="lg:ml-auto" />
 

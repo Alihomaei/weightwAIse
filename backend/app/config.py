@@ -14,8 +14,8 @@ class Settings(BaseSettings):
     # --- Gemini ---
     GEMINI_API_KEY: str
     GEMINI_FLASH_MODEL: str = "gemini-2.5-flash"
-    GEMINI_PRO_MODEL: str = "gemini-3.1-pro"
-    GEMINI_EMBEDDING_MODEL: str = "models/gemini-embedding-exp-03-07"
+    GEMINI_PRO_MODEL: str = "gemini-3.1-pro-preview"
+    GEMINI_EMBEDDING_MODEL: str = "models/gemini-embedding-2-preview"
     GEMINI_EMBEDDING_DIMENSION: int = 3072
 
     # --- Pinecone ---

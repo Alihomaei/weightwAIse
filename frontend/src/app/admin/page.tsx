@@ -7,13 +7,13 @@ import { DashboardStats } from '@/lib/types';
 import { Card, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
+import { Separator } from '@/components/ui/Separator';
 import { formatRelativeTime } from '@/lib/utils';
 import {
   Users,
   MessageSquare,
   Database,
   BookOpen,
-  TrendingUp,
   User,
 } from 'lucide-react';
 
@@ -38,30 +38,26 @@ export default function AdminDashboard() {
     {
       label: 'Total Patients',
       value: stats?.total_patients ?? 0,
-      icon: <Users className="h-6 w-6" />,
-      color: 'text-primary-600 bg-primary-100',
-      trend: '+12%',
+      icon: <Users className="h-5 w-5" />,
+      color: 'text-primary-800 bg-primary-50',
     },
     {
       label: 'Active Sessions',
       value: stats?.active_sessions ?? 0,
-      icon: <MessageSquare className="h-6 w-6" />,
-      color: 'text-teal-600 bg-teal-100',
-      trend: null,
+      icon: <MessageSquare className="h-5 w-5" />,
+      color: 'text-teal-700 bg-teal-50',
     },
     {
       label: 'KB Chunks',
       value: stats?.kb_chunks ?? 0,
-      icon: <Database className="h-6 w-6" />,
-      color: 'text-purple-600 bg-purple-100',
-      trend: null,
+      icon: <Database className="h-5 w-5" />,
+      color: 'text-purple-700 bg-purple-50',
     },
     {
       label: 'PubMed Papers',
       value: stats?.pubmed_papers ?? 0,
-      icon: <BookOpen className="h-6 w-6" />,
-      color: 'text-amber-600 bg-amber-100',
-      trend: null,
+      icon: <BookOpen className="h-5 w-5" />,
+      color: 'text-amber-700 bg-amber-50',
     },
   ];
 
@@ -69,8 +65,8 @@ export default function AdminDashboard() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-medical-text">Dashboard</h1>
-        <p className="text-sm text-medical-muted mt-1">
+        <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Overview of your weightwAIse instance
         </p>
       </div>
@@ -78,48 +74,49 @@ export default function AdminDashboard() {
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat) => (
-          <Card key={stat.label} hover>
+          <Card key={stat.label} hover padding="md">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-medical-muted">{stat.label}</p>
-                <p className="text-3xl font-bold text-medical-text mt-1">
+                <p className="text-sm text-muted-foreground">{stat.label}</p>
+                <p className="text-2xl font-semibold text-foreground mt-1">
                   {stat.value.toLocaleString()}
                 </p>
               </div>
-              <div className={`p-3 rounded-xl ${stat.color}`}>{stat.icon}</div>
+              <div className={`p-2.5 rounded-xl ${stat.color}`}>{stat.icon}</div>
             </div>
           </Card>
         ))}
       </div>
 
       {/* Recent Patients */}
-      <Card>
-        <div className="flex items-center justify-between mb-4">
+      <Card padding="none">
+        <div className="flex items-center justify-between px-6 py-4">
           <CardTitle>Recent Patients</CardTitle>
           <a
             href="/admin/patients"
-            className="text-sm text-primary-600 hover:text-primary-800 font-medium transition-colors"
+            className="text-sm text-primary-700 hover:text-primary-900 font-medium transition-colors"
           >
             View all
           </a>
         </div>
+        <Separator />
 
         {stats?.recent_patients && stats.recent_patients.length > 0 ? (
-          <div className="space-y-3">
+          <div className="divide-y">
             {stats.recent_patients.slice(0, 5).map((patient) => (
               <div
                 key={patient.id}
-                className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
+                className="flex items-center gap-3 px-6 py-3.5 hover:bg-muted/30 transition-colors"
               >
-                <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
-                  <User className="h-5 w-5 text-primary-600" />
+                <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+                  <User className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-medical-text truncate">
+                  <p className="text-sm font-medium text-foreground truncate">
                     {patient.full_name}
                   </p>
-                  <p className="text-xs text-medical-muted">
-                    @{patient.username} — {patient.sessions_count} session(s)
+                  <p className="text-xs text-muted-foreground">
+                    @{patient.username} -- {patient.sessions_count} session(s)
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -129,7 +126,7 @@ export default function AdminDashboard() {
                   >
                     {patient.intake_status === 'complete' ? 'Complete' : 'In Progress'}
                   </Badge>
-                  <span className="text-xs text-medical-muted whitespace-nowrap">
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
                     {formatRelativeTime(patient.created_at)}
                   </span>
                 </div>
@@ -137,9 +134,9 @@ export default function AdminDashboard() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-8">
-            <Users className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-medical-muted">No patients registered yet.</p>
+          <div className="text-center py-12">
+            <Users className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">No patients registered yet.</p>
           </div>
         )}
       </Card>

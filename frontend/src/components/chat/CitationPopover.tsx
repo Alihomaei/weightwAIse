@@ -31,7 +31,6 @@ export function CitationPopover({ citation, anchorRect, onClose }: CitationPopov
     };
   }, [onClose]);
 
-  // Position the popover near the citation button
   const style: React.CSSProperties = {
     position: 'fixed',
     top: anchorRect.bottom + 8,
@@ -45,29 +44,29 @@ export function CitationPopover({ citation, anchorRect, onClose }: CitationPopov
     <div
       ref={ref}
       style={style}
-      className="w-80 bg-white rounded-lg border border-medical-border shadow-xl p-4 animate-fade-in"
+      className="w-80 bg-popover rounded-xl border shadow-lg p-4 animate-fade-in"
       role="tooltip"
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 text-xs text-medical-muted">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <FileText className="h-3.5 w-3.5" />
           <span>{isPubMed ? 'PubMed' : 'Guideline'}</span>
         </div>
         <button
           onClick={onClose}
-          className="p-0.5 rounded hover:bg-gray-100 transition-colors"
+          className="p-0.5 rounded-md hover:bg-muted transition-colors"
           aria-label="Close citation"
         >
-          <X className="h-3.5 w-3.5 text-medical-muted" />
+          <X className="h-3.5 w-3.5 text-muted-foreground" />
         </button>
       </div>
 
-      <h4 className="text-sm font-semibold text-medical-text mt-2 leading-snug">
+      <h4 className="text-sm font-semibold text-foreground mt-2 leading-snug">
         {citation.title || citation.source}
       </h4>
 
       {citation.authors && (
-        <p className="text-xs text-medical-muted mt-1 line-clamp-2">
+        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
           {citation.authors}
         </p>
       )}
@@ -78,14 +77,14 @@ export function CitationPopover({ citation, anchorRect, onClose }: CitationPopov
         </p>
       )}
 
-      <div className="flex items-center gap-3 mt-3 pt-2 border-t border-gray-100">
+      <div className="flex items-center gap-3 mt-3 pt-2 border-t">
         {citation.page && (
-          <span className="text-xs text-medical-muted">
+          <span className="text-xs text-muted-foreground">
             Page {citation.page}
           </span>
         )}
         {citation.section && (
-          <span className="text-xs text-medical-muted">
+          <span className="text-xs text-muted-foreground">
             {citation.section}
           </span>
         )}
@@ -94,7 +93,7 @@ export function CitationPopover({ citation, anchorRect, onClose }: CitationPopov
             href={`https://pubmed.ncbi.nlm.nih.gov/${citation.pmid}/`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-800 transition-colors ml-auto"
+            className="flex items-center gap-1 text-xs text-primary-700 hover:text-primary-900 transition-colors ml-auto"
           >
             <span>PMID: {citation.pmid}</span>
             <ExternalLink className="h-3 w-3" />
@@ -105,7 +104,7 @@ export function CitationPopover({ citation, anchorRect, onClose }: CitationPopov
             href={`https://www.ncbi.nlm.nih.gov/pmc/articles/${citation.pmc_id}/`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-800 transition-colors"
+            className="flex items-center gap-1 text-xs text-primary-700 hover:text-primary-900 transition-colors"
           >
             <span>{citation.pmc_id}</span>
             <ExternalLink className="h-3 w-3" />

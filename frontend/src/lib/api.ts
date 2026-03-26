@@ -2,7 +2,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { getAccessToken, getRefreshToken, setTokens, clearTokens, isTokenExpired } from './auth';
 import { AuthTokens } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8003';
 
 // ─── Axios Instance ─────────────────────────────────────────────────────────
 
@@ -137,7 +137,7 @@ export async function streamChat(
   signal?: AbortSignal
 ): Promise<void> {
   const token = getAccessToken();
-  const url = `${API_BASE_URL}/api/chat/stream`;
+  const url = `${API_BASE_URL}/api/chat/sessions/${sessionId}/messages`;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -148,7 +148,6 @@ export async function streamChat(
     body: JSON.stringify({
       content,
       language,
-      session_id: sessionId,
     }),
     signal,
   });
@@ -167,6 +166,7 @@ export async function streamChat(
 
   const decoder = new TextDecoder();
   let buffer = '';
+  let currentEvent = '';
 
   try {
     while (true) {
@@ -178,6 +178,12 @@ export async function streamChat(
       buffer = lines.pop() || '';
 
       for (const line of lines) {
+        // SSE format: "event: <name>" followed by "data: <json>"
+        if (line.startsWith('event: ')) {
+          currentEvent = line.slice(7).trim();
+          continue;
+        }
+
         if (!line.startsWith('data: ')) continue;
         const jsonStr = line.slice(6).trim();
         if (!jsonStr || jsonStr === '[DONE]') {
@@ -186,33 +192,35 @@ export async function streamChat(
         }
 
         try {
-          const event = JSON.parse(jsonStr);
-          switch (event.type) {
+          const data = JSON.parse(jsonStr);
+
+          switch (currentEvent) {
             case 'token':
-              callbacks.onToken(event.data as string);
+              callbacks.onToken(data.text || data);
               break;
             case 'citations':
-              callbacks.onCitations(event.data as unknown[]);
+              callbacks.onCitations(data);
               break;
             case 'extracted_fields':
-              callbacks.onExtractedFields(event.data as Record<string, unknown>);
+              callbacks.onExtractedFields(data);
               break;
             case 'intake_progress':
-              callbacks.onIntakeProgress(event.data);
+              callbacks.onIntakeProgress(data);
               break;
             case 'phase':
-              callbacks.onPhase(event.data as string);
+              callbacks.onPhase(data.phase || data);
               break;
             case 'model_used':
-              callbacks.onModelUsed(event.data as string);
+              callbacks.onModelUsed(data.model || data);
               break;
             case 'done':
-              callbacks.onDone(event.data);
+              callbacks.onDone(data);
               break;
             case 'error':
-              callbacks.onError(event.data as string);
+              callbacks.onError(data.error || JSON.stringify(data));
               break;
           }
+          currentEvent = '';
         } catch {
           // Skip malformed JSON lines
         }

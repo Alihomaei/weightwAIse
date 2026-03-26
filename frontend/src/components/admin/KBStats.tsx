@@ -28,56 +28,65 @@ export function KBStats() {
 
   if (!stats) return null;
 
+  const s = stats as unknown as Record<string, unknown>;
+  const totalChunks = (s.total_chunks as number) ?? 0;
+  const textChunks = (s.text_chunks as number) ?? totalChunks;
+  const imageChunks = (s.image_chunks as number) ?? 0;
+  const guidelineDocs = (s.guideline_documents as number) ?? (s.active_sources as number) ?? (s.total_sources as number) ?? 0;
+  const pubmedPapers = (s.pubmed_papers as number) ?? 0;
+
   const statCards = [
     {
       label: 'Total Chunks',
-      value: stats.total_chunks.toLocaleString(),
-      icon: <Database className="h-5 w-5" />,
-      color: 'text-primary-600 bg-primary-100',
+      value: totalChunks.toLocaleString(),
+      icon: <Database className="h-4 w-4" />,
+      color: 'text-primary-800 bg-primary-50',
     },
     {
       label: 'Text Chunks',
-      value: stats.text_chunks.toLocaleString(),
-      icon: <FileText className="h-5 w-5" />,
-      color: 'text-teal-600 bg-teal-100',
+      value: textChunks.toLocaleString(),
+      icon: <FileText className="h-4 w-4" />,
+      color: 'text-teal-700 bg-teal-50',
     },
     {
       label: 'Image Chunks',
-      value: stats.image_chunks.toLocaleString(),
-      icon: <Image className="h-5 w-5" />,
-      color: 'text-purple-600 bg-purple-100',
+      value: imageChunks.toLocaleString(),
+      icon: <Image className="h-4 w-4" />,
+      color: 'text-purple-700 bg-purple-50',
     },
     {
       label: 'Guideline Docs',
-      value: stats.guideline_documents.toString(),
-      icon: <ScrollText className="h-5 w-5" />,
-      color: 'text-amber-600 bg-amber-100',
+      value: guidelineDocs.toString(),
+      icon: <ScrollText className="h-4 w-4" />,
+      color: 'text-amber-700 bg-amber-50',
     },
     {
       label: 'PubMed Papers',
-      value: stats.pubmed_papers.toString(),
-      icon: <BookOpen className="h-5 w-5" />,
-      color: 'text-emerald-600 bg-emerald-100',
+      value: pubmedPapers.toString(),
+      icon: <BookOpen className="h-4 w-4" />,
+      color: 'text-emerald-700 bg-emerald-50',
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-      {statCards.map((stat) => (
-        <Card key={stat.label} padding="sm" hover>
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${stat.color}`}>{stat.icon}</div>
-            <div>
-              <p className="text-xl font-bold text-medical-text">{stat.value}</p>
-              <p className="text-xs text-medical-muted">{stat.label}</p>
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {statCards.map((stat) => (
+          <Card key={stat.label} padding="sm" hover>
+            <div className="flex items-center gap-2.5">
+              <div className={`p-2 rounded-lg ${stat.color}`}>{stat.icon}</div>
+              <div>
+                <p className="text-lg font-semibold text-foreground tabular-nums">{stat.value}</p>
+                <p className="text-xs text-muted-foreground">{stat.label}</p>
+              </div>
             </div>
-          </div>
-        </Card>
-      ))}
+          </Card>
+        ))}
+      </div>
       {stats.last_updated && (
-        <div className="col-span-full text-xs text-medical-muted text-right">
+        <p className="text-xs text-muted-foreground text-right">
           Last updated: {formatRelativeTime(stats.last_updated)}
-        </div>
+        </p>
       )}
     </div>
   );
