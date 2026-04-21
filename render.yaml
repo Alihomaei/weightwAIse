@@ -25,10 +25,10 @@ services:
           name: weightwaise-db
           property: connectionString
       - key: FRONTEND_URL
-        sync: false  # Set this manually to your Vercel production URL
-        # Example: https://weightwaise.vercel.app
+        value: https://weightwaisenil.vercel.app
       - key: CORS_ALLOW_ORIGIN_REGEX
-        value: "^https://weightwaise(-[a-z0-9-]+)?\\.vercel\\.app$"
+        # Matches the Vercel project "weightwaisenil" — production + all preview/branch URLs
+        value: "^https://weightwaisenil(-[a-z0-9-]+)?\\.vercel\\.app$"
       - key: GEMINI_API_KEY
         sync: false  # Secret — set in Render dashboard
       - key: PINECONE_API_KEY
