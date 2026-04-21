@@ -15,9 +15,9 @@ A multimodal RAG-powered web application that acts as a bariatric and metabolic 
 1. Conducts structured patient intake via a hybrid guided-chat interface (text + voice, English/Spanish)
 2. Uses a decision-tree + LLM hybrid to recommend lifestyle changes, pharmacotherapy (e.g., tirzepatide/semaglutide), or bariatric surgery
 3. Grounds all medical reasoning in admin-uploaded surgical guidelines and auto-updated PubMed literature
-4. Stores multimodal embeddings (text, images, tables, video frames) in ChromaDB using Google Gemini multimodal embedding
-5. Uses dual Gemini models: Flash for conversational chat, Pro for complex clinical reasoning
-6. Produces patient summary reports (in-app + downloadable PDF) with inline source citations
+4. Stores multimodal embeddings (text, images, tables, video frames) in Pinecone (single index with metadata filters) using Gemini Embedding 2 (3072 dims)
+5. Uses dual Gemini models: Gemini 2.5 Flash for conversational chat, Gemini 3.1 Pro for complex clinical reasoning
+6. Produces patient summary reports (downloadable PDF via ReportLab) with demographics, medical history, clinical assessment, discussion, recommendation, clinic referral, and disclaimer (no raw source citations)
 7. Directs patients to admin-configured clinic(s) when a visit is recommended
 
 ### 1.2 High-Level Architecture Diagram
@@ -26,16 +26,16 @@ A multimodal RAG-powered web application that acts as a bariatric and metabolic 
 ┌──────────────────────────────────────────────────────────────────┐
 │                        VERCEL (Frontend)                         │
 │  ┌────────────────────────────────────────────────────────────┐  │
-│  │  Next.js 14 + Tailwind CSS + TypeScript                   │  │
+│  │  Next.js 14 + shadcn/ui (Radix + Tailwind) + TypeScript   │  │
 │  │  ┌──────────┐ ┌──────────┐ ┌───────────┐ ┌────────────┐  │  │
 │  │  │ Patient  │ │  Admin   │ │   Chat    │ │   Voice    │  │  │
 │  │  │  Auth    │ │  Panel   │ │ Interface │ │  (WebSpeech│  │  │
-│  │  │  Login   │ │  Upload/ │ │ + Inline  │ │   API)     │  │  │
-│  │  │         │ │  Manage  │ │ Citations │ │            │  │  │
+│  │  │  Login   │ │  Upload/ │ │ + Session │ │   API)     │  │  │
+│  │  │         │ │  Manage  │ │  Sidebar  │ │            │  │  │
 │  │  └──────────┘ └──────────┘ └───────────┘ └────────────┘  │  │
 │  └────────────────────────────────────────────────────────────┘  │
 └──────────────────────────┬───────────────────────────────────────┘
-                           │ HTTPS REST / WebSocket
+                           │ HTTPS REST + SSE streaming
                            ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │                  UBUNTU SERVER (Backend)                          │
@@ -56,19 +56,19 @@ A multimodal RAG-powered web application that acts as a bariatric and metabolic 
 │  └─────────────────────────────────────────────────────────┘     │
 │                                                                  │
 │  ┌─────────────┐  ┌─────────────┐  ┌──────────────────────┐     │
-│  │ PostgreSQL  │  │  ChromaDB   │  │  File Storage        │     │
-│  │ (patients,  │  │ (multimodal │  │  /data/guidelines/   │     │
-│  │  sessions,  │  │  embeddings)│  │  /data/pubmed/       │     │
-│  │  admin cfg) │  │             │  │  /data/uploads/      │     │
+│  │ SQLite WAL  │  │  Pinecone   │  │  File Storage        │     │
+│  │ (aiosqlite) │  │ (single idx │  │  /data/guidelines/   │     │
+│  │ (patients,  │  │  + metadata │  │  /data/pubmed/       │     │
+│  │  sessions)  │  │   filters)  │  │  /data/uploads/      │     │
 │  └─────────────┘  └─────────────┘  └──────────────────────┘     │
 └──────────────────────────────────────────────────────────────────┘
                            │
                            ▼ External APIs
               ┌────────────────────────┐
               │  Google Gemini API     │
-              │  - embedding-001       │
-              │  - gemini-2.0-flash    │
-              │  - gemini-2.5-pro      │
+              │  - Gemini Embedding 2  │
+              │  - gemini-2.5-flash    │
+              │  - gemini-3.1-pro      │
               │                        │
               │  NCBI PubMed / PMC API │
               │  - E-utilities         │
@@ -80,17 +80,18 @@ A multimodal RAG-powered web application that acts as a bariatric and metabolic 
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| Frontend | Next.js 14, TypeScript, Tailwind CSS | Chat UI, admin panel, patient auth |
+| Frontend | Next.js 14, TypeScript, shadcn/ui (Radix + Tailwind) | Chat UI, session sidebar, admin panel, patient auth |
+| Markdown rendering | `@tailwindcss/typography` + `react-markdown` + `remark-gfm` | Rich Markdown in chat messages |
 | Voice I/O | Web Speech API (SpeechRecognition + SpeechSynthesis) | Browser-based STT/TTS, English + Spanish |
-| Backend API | Python 3.11+, FastAPI, Uvicorn | REST API, WebSocket for chat streaming |
-| LLM (chat) | Gemini 2.0 Flash | Fast conversational responses |
-| LLM (reasoning) | Gemini 2.5 Pro | Complex clinical decision-making |
-| Embeddings | Gemini text-embedding-004 + multimodal embedding | Text + image embeddings |
-| Vector DB | ChromaDB (persistent, local) | Multimodal embedding storage + retrieval |
-| Relational DB | PostgreSQL 16 | Patient records, sessions, admin config |
+| Backend API | Python 3.11+, FastAPI, Uvicorn | REST API, SSE for chat streaming |
+| LLM (chat) | Gemini 2.5 Flash (temp 0.3) | Fast conversational responses |
+| LLM (reasoning) | Gemini 3.1 Pro (temp 0.2) | Complex clinical decision-making |
+| Embeddings | Gemini Embedding 2 (multimodal, 3072 dims) | Text + image embeddings |
+| Vector DB | Pinecone (single index, metadata filters) | Multimodal embedding storage + retrieval |
+| Relational DB | SQLite with WAL mode (async via aiosqlite) | Patient records, sessions, admin config (dev) |
 | Document Processing | PyMuPDF, python-pptx, OpenCV, Tesseract | PDF/PPT/video/image ingestion |
 | PubMed | NCBI E-utilities + PMC OA API | Literature search and full-text retrieval |
-| PDF Reports | ReportLab or WeasyPrint | Patient summary PDF generation |
+| PDF Reports | ReportLab | Patient summary PDF generation |
 | Deployment | Ubuntu server (backend), Vercel (frontend) | Split deployment |
 
 ---
@@ -152,14 +153,11 @@ backend/
 │       ├── embeddings.py          # Gemini embedding helpers
 │       ├── chunking.py            # Document chunking strategies
 │       └── prompts.py             # All LLM prompt templates
-├── alembic/                       # Database migrations
 ├── data/                          # Local file storage
 │   ├── guidelines/
-│   ├── pubmed/
-│   └── chroma_db/
+│   └── pubmed/
 ├── tests/
 ├── requirements.txt
-├── alembic.ini
 ├── .env.example
 └── Dockerfile (optional)
 ```
@@ -217,7 +215,7 @@ frontend/
 └── tsconfig.json
 ```
 
-#### 1C: Database Schema (PostgreSQL via Alembic)
+#### 1C: Database Schema (SQLite WAL via aiosqlite)
 
 ```sql
 -- Users table (admin + patient roles)
@@ -348,11 +346,11 @@ CREATE TABLE kb_sources (
 ```
 
 #### Acceptance Criteria (Module 1):
-- [ ] `uvicorn app.main:app` starts without errors
-- [ ] `alembic upgrade head` creates all tables
-- [ ] `npm run dev` starts Next.js frontend
-- [ ] Frontend can reach backend via CORS-enabled API
-- [ ] `.env.example` documents all required env vars (GEMINI_API_KEY, DATABASE_URL, JWT_SECRET, etc.)
+- [x] `uvicorn app.main:app` starts without errors
+- [x] SQLite WAL database created with tables on startup (via aiosqlite)
+- [x] `npm run dev` starts Next.js frontend
+- [x] Frontend can reach backend via CORS-enabled API
+- [x] `.env.example` documents all required env vars (GEMINI_API_KEY, PINECONE_API_KEY, JWT_SECRET, etc.)
 
 ---
 
@@ -378,10 +376,10 @@ CREATE TABLE kb_sources (
 - Language selector on login page (English / Spanish)
 
 #### Acceptance Criteria (Module 2):
-- [ ] Admin can register and login
-- [ ] Patient can register and login
-- [ ] Unauthorized requests return 401
-- [ ] Admin routes reject patient tokens
+- [x] Admin can register and login
+- [x] Patient can register and login
+- [x] Unauthorized requests return 401
+- [x] Admin routes reject patient tokens
 - [ ] Language preference saved to user profile
 
 ---
@@ -391,14 +389,14 @@ CREATE TABLE kb_sources (
 **Priority**: 🔴 Critical
 **Dependencies**: Module 1
 
-This is the core of the RAG system. It handles all four input formats and produces multimodal embeddings stored in ChromaDB.
+This is the core of the RAG system. It handles all four input formats and produces multimodal embeddings stored in Pinecone (single index with metadata filters).
 
 #### 3A: Chunking & Embedding Strategy
 
 ```python
-# Embedding models to use:
-# - Text: "models/text-embedding-004" (768 dims) via Gemini API
-# - Multimodal: "models/embedding-001" with task_type for images+text
+# Embedding model:
+# - Gemini Embedding 2 (multimodal, 3072 dims) — used for both text and image+text
+# - Single Pinecone index with metadata filters to separate source types
 
 # Chunking strategy per format:
 # PDF:   semantic chunking by section headers, ~500-800 tokens per chunk
@@ -419,12 +417,12 @@ Steps:
   3. Split into semantic chunks (by section, capped at ~800 tokens)
   4. Extract embedded images + tables (render table regions as images)
   5. For each text chunk:
-     - Call Gemini text-embedding-004 → 768-dim vector
-     - Store in ChromaDB collection "guidelines_text"
+     - Call Gemini Embedding 2 → 3072-dim vector
+     - Store in Pinecone index with metadata filter source_type="pdf_text"
      - Metadata: {source_id, page_num, section_title, source_type: "pdf"}
   6. For each image/table chunk:
-     - Call Gemini multimodal embedding with image + caption
-     - Store in ChromaDB collection "guidelines_multimodal"
+     - Call Gemini Embedding 2 (multimodal) with image + caption
+     - Store in Pinecone index with metadata filter source_type="pdf_multimodal"
      - Metadata: {source_id, page_num, image_type: "figure"|"table", caption}
   7. Record in kb_sources table
 ```
@@ -437,8 +435,8 @@ Steps:
   1. Extract text from each slide using python-pptx
   2. Render each slide as an image (via LibreOffice headless convert to PDF → image)
   3. For each slide:
-     - Text chunk → Gemini text embedding → ChromaDB "guidelines_text"
-     - Slide image → Gemini multimodal embedding → ChromaDB "guidelines_multimodal"
+     - Text chunk → Gemini Embedding 2 → Pinecone (source_type="pptx_text")
+     - Slide image → Gemini Embedding 2 (multimodal) → Pinecone (source_type="pptx_multimodal")
      - Metadata: {source_id, slide_number, slide_title}
   4. Record in kb_sources table
 ```
@@ -454,7 +452,7 @@ Steps:
   4. Keep cluster centroids as representative frames
   5. Optionally run OCR (Tesseract) on frames with text overlays
   6. For each representative frame:
-     - Gemini multimodal embedding → ChromaDB "guidelines_multimodal"
+     - Gemini Embedding 2 (multimodal) → Pinecone (source_type="video_multimodal")
      - Metadata: {source_id, timestamp_sec, ocr_text, frame_index}
   7. Record in kb_sources table
 ```
@@ -466,41 +464,51 @@ Input:  .txt or .md file path
 Steps:
   1. Read file content
   2. Split by headers (markdown) or recursive character split
-  3. Each chunk → Gemini text embedding → ChromaDB "guidelines_text"
+  3. Each chunk → Gemini Embedding 2 → Pinecone (source_type="text")
   4. Metadata: {source_id, section_title, chunk_index}
   5. Record in kb_sources table
 ```
 
-#### 3F: ChromaDB Collection Schema
+#### 3F: Pinecone Index Schema
 
 ```python
-# Two collections for separation of modalities:
-
-# Collection 1: "guidelines_text"
+# Single Pinecone index with metadata filters to separate content types.
+# Embedding dimension: 3072 (Gemini Embedding 2)
+#
+# Each vector has:
 # - id: unique chunk ID (uuid)
-# - embedding: 768-dim float vector (text-embedding-004)
-# - document: raw text content of the chunk
-# - metadata: {source_id, source_type, page_num, section_title, chunk_index, ingested_at}
-
-# Collection 2: "guidelines_multimodal"
-# - id: unique chunk ID (uuid)
-# - embedding: multimodal embedding vector
-# - document: caption or OCR text (for search fallback)
-# - metadata: {source_id, source_type, page_num, slide_number, timestamp_sec,
-#              image_type, image_path (local path to stored image), ingested_at}
-
-# Collection 3: "pubmed_text"
-# - Same schema as guidelines_text but source_type="pubmed"
-# - Additional metadata: {pmid, pmc_id, title, authors, pub_date, journal}
+# - values: 3072-dim float vector (Gemini Embedding 2)
+# - metadata:
+#     source_type: "pdf_text" | "pdf_multimodal" | "pptx_text" | "pptx_multimodal"
+#                  | "video_multimodal" | "text" | "pubmed"
+#     source_id: str
+#     page_num: int (if applicable)
+#     section_title: str (if applicable)
+#     chunk_index: int
+#     slide_number: int (if PPTX)
+#     timestamp_sec: float (if video)
+#     image_type: "figure" | "table" (if multimodal)
+#     image_path: str (local path to stored image, if multimodal)
+#     text_content: str (raw text for retrieval display)
+#     pmid: str (if PubMed)
+#     pmc_id: str (if PubMed)
+#     title: str (if PubMed)
+#     authors: str (if PubMed)
+#     pub_date: str (if PubMed)
+#     journal: str (if PubMed)
+#     ingested_at: str
+#
+# Queries use metadata filters, e.g.:
+#   filter={"source_type": {"$in": ["pdf_text", "pptx_text", "pubmed"]}}
 ```
 
 #### Acceptance Criteria (Module 3):
-- [ ] PDF with figures → text chunks + image chunks in ChromaDB
+- [x] PDF with figures → text chunks + image chunks in Pinecone
 - [ ] PPTX → per-slide text + image embeddings
 - [ ] Video → representative frame embeddings with timestamps
 - [ ] Markdown/text files → text chunks with section metadata
 - [ ] All sources tracked in `kb_sources` table
-- [ ] ChromaDB persisted to `data/chroma_db/` (survives restart)
+- [x] Pinecone index persists in cloud (survives restart)
 - [ ] Duplicate detection: re-uploading same file skips or replaces
 
 ---
@@ -535,7 +543,7 @@ Steps:
 #   For abstract-only papers:
 #   - Treat entire abstract as one chunk
 
-# Step 5: Embed and store in ChromaDB "pubmed_text" collection
+# Step 5: Embed and store in Pinecone (source_type="pubmed")
 # Step 6: Record in kb_sources table with PMID, PMC ID
 ```
 
@@ -552,7 +560,7 @@ Flow:
      a. Search PubMed, get PMIDs
      b. Filter out already-ingested PMIDs (check kb_sources.pubmed_id)
      c. Fetch & parse new papers
-     d. Chunk, embed, store in ChromaDB
+     d. Chunk, embed, store in Pinecone
      e. Record in kb_sources
   3. Return summary: {new_papers: N, total_chunks: M, errors: [...]}
 ```
@@ -583,15 +591,14 @@ Flow:
 ```python
 async def retrieve(query: str, top_k: int = 10, filters: dict = None) -> list[RetrievedChunk]:
     """
-    Multi-collection retrieval with reranking.
-    
+    Single-index retrieval with metadata filters and reranking.
+
     Steps:
-    1. Embed the query using Gemini text-embedding-004
-    2. Search ChromaDB collections in parallel:
-       - "guidelines_text"   → top_k text chunks
-       - "guidelines_multimodal" → top_k multimodal chunks
-       - "pubmed_text"       → top_k pubmed chunks
-    3. Merge results, deduplicate by source
+    1. Embed the query using Gemini Embedding 2 → 3072-dim vector
+    2. Query Pinecone index with metadata filters:
+       - filter={"source_type": {"$in": [...]}} to target text, multimodal, pubmed
+       - top_k results across all matching source types
+    3. Deduplicate by source
     4. Rerank using Gemini Flash (lightweight relevance scoring)
     5. Return top_k chunks with metadata + relevance scores
     """
@@ -623,7 +630,7 @@ class Citation:
 ```
 
 #### Acceptance Criteria (Module 5):
-- [ ] Query returns relevant chunks from all three collections
+- [ ] Query returns relevant chunks from Pinecone across all source types
 - [ ] Results are ranked by relevance
 - [ ] Citations include enough metadata for frontend rendering
 - [ ] Retrieval latency < 2s for typical queries
@@ -643,8 +650,8 @@ import google.generativeai as genai
 class GeminiService:
     def __init__(self):
         genai.configure(api_key=settings.GEMINI_API_KEY)
-        self.flash = genai.GenerativeModel("gemini-2.0-flash")
-        self.pro = genai.GenerativeModel("gemini-2.5-pro")
+        self.flash = genai.GenerativeModel("gemini-2.5-flash")  # temp 0.3
+        self.pro = genai.GenerativeModel("gemini-3.1-pro")      # temp 0.2
     
     async def chat_response(self, messages: list, context_chunks: list[RetrievedChunk],
                             patient_intake: dict, use_pro: bool = False) -> str:
@@ -890,13 +897,12 @@ SURGERY_TYPES = {
                               └──────────────────┘
 ```
 
-#### 8B: WebSocket Chat Endpoint
+#### 8B: SSE Chat Endpoint (implemented)
 
 ```python
-# POST /api/chat/message (REST, simpler) or WebSocket /api/chat/ws/{session_id}
-# 
-# For MVP: REST with streaming response (SSE)
-# 
+# POST /api/chat/message — REST with Server-Sent Events (SSE) streaming
+# (WebSocket was originally considered but SSE was chosen for simplicity)
+#
 # Request:
 # {
 #   "session_id": "uuid",
@@ -918,12 +924,17 @@ SURGERY_TYPES = {
 #### 8C: Frontend Chat Component
 
 ```
-ChatWindow.tsx:
+ChatWindow.tsx (with shadcn/ui components):
+├── Session Sidebar (navy, always visible on desktop):
+│   ├── Session history list (click to switch sessions)
+│   ├── New session button
+│   ├── PDF download button per session (ReportLab-generated)
+│   └── Collapsible on mobile
 ├── Header: patient name, session phase indicator, language toggle
 ├── Messages area:
 │   ├── MessageBubble (user): text + voice indicator
-│   ├── MessageBubble (assistant): text + inline citations [1][2]
-│   │   └── CitationPopover: on click, shows source details
+│   ├── MessageBubble (assistant): Markdown rendered via react-markdown + remark-gfm
+│   │   └── Styled with @tailwindcss/typography prose classes
 │   └── IntakeProgress: progress bar showing fields collected
 ├── Input area:
 │   ├── Text input with send button
@@ -960,14 +971,16 @@ export class VoiceService {
 ```
 
 #### Acceptance Criteria (Module 8):
-- [ ] Patient can complete full intake via guided chat
+- [x] Patient can complete full intake via guided chat
 - [ ] Intake progress bar updates as fields are extracted
 - [ ] Decision tree fires after intake completion
-- [ ] Consultation phase uses RAG-grounded responses
+- [x] Consultation phase uses RAG-grounded responses
 - [ ] Voice input transcribes and sends as text message
 - [ ] Voice output reads assistant responses aloud
 - [ ] Language switching works mid-conversation
-- [ ] Citations render as clickable inline references
+- [x] Session sidebar with history, PDF download, session switching
+- [x] Markdown rendering in chat (react-markdown + remark-gfm + @tailwindcss/typography)
+- [x] SSE streaming for real-time responses
 
 ---
 
@@ -986,7 +999,7 @@ export class VoiceService {
 - File upload zone (drag & drop): PDF, PPTX, video, text/md
 - Upload triggers backend ingestion pipeline
 - Table of all ingested sources: filename, type, chunks count, date, status
-- Delete/archive source (removes from ChromaDB too)
+- Delete/archive source (removes from Pinecone too)
 - KB stats: total chunks, collection sizes, storage used
 
 **`/admin/pubmed` — PubMed Configuration**
@@ -1034,7 +1047,7 @@ PUT    /api/admin/config/{key}
 - [ ] Admin can configure PubMed queries and trigger updates
 - [ ] Admin can view all patient records and chat histories
 - [ ] Admin can edit clinic information
-- [ ] KB stats accurately reflect ChromaDB contents
+- [ ] KB stats accurately reflect Pinecone index contents
 - [ ] File upload shows progress and completion status
 
 ---
@@ -1047,8 +1060,8 @@ PUT    /api/admin/config/{key}
 #### 10A: Report Contents
 
 ```
-Patient Summary Report
-══════════════════════
+Patient Summary Report (PDF via ReportLab)
+══════════════════════════════════════════
 
 1. Patient Demographics
    - Name, age, sex, BMI, weight, height
@@ -1081,50 +1094,51 @@ Patient Summary Report
    - Recommended appointment type
    - What to bring to appointment
 
-7. Sources Cited
-   - List of all guidelines and papers cited in consultation
-
-8. Disclaimer
+7. Disclaimer
    - "This is an AI-generated consultation summary for informational purposes..."
+
+Note: No raw source citations section — clinical reasoning is grounded in
+RAG context but the patient-facing PDF omits individual chunk/source references.
 ```
 
 #### 10B: Implementation
 
 - **In-app view**: Rendered as a styled React component at `/chat/summary/{session_id}`
-- **PDF download**: Generated server-side via ReportLab or WeasyPrint
+- **PDF download**: Generated server-side via ReportLab
 - **API**: `GET /api/reports/{session_id}` (JSON) and `GET /api/reports/{session_id}/pdf`
 - **Clinic referral**: Pulled from `admin_config` table, key='clinic_info'
 
 #### Acceptance Criteria (Module 10):
 - [ ] Summary generated automatically when session ends
-- [ ] In-app summary view renders all sections
-- [ ] PDF downloads correctly with formatting
+- [x] PDF downloads correctly with formatting (ReportLab)
+- [x] PDF includes demographics, medical history, clinical assessment, discussion, recommendation, clinic referral, disclaimer
 - [ ] Clinic referral info pulled from admin-configured settings
-- [ ] All cited sources listed with proper attribution
+- [ ] No raw source citations in patient-facing PDF
 
 ---
 
 ## 3. Implementation Order & Sprint Plan
 
 ### Sprint 1 (Week 1-2): Foundation
-- [ ] Module 1: Project scaffolding (backend + frontend + DB)
-- [ ] Module 2: Authentication system
+- [x] Module 1: Project scaffolding (backend + frontend + DB) — SQLite WAL + aiosqlite, Pinecone, shadcn/ui
+- [x] Module 2: Authentication system — JWT auth working
 
 ### Sprint 2 (Week 3-4): Knowledge Base Core
-- [ ] Module 3: Document ingestion pipeline (all 4 formats)
+- [x] Module 3: Document ingestion pipeline — PDF ingestion working (PPTX/video/text TBD)
 - [ ] Module 5: RAG retrieval engine
 
 ### Sprint 3 (Week 5-6): Intelligence Layer
-- [ ] Module 6: Gemini LLM service (dual model)
+- [x] Module 6: Gemini LLM service (Gemini 2.5 Flash + Gemini 3.1 Pro)
 - [ ] Module 7: Clinical decision tree
 
 ### Sprint 4 (Week 7-8): Patient Experience
-- [ ] Module 8: Patient chat interface (intake + consultation + voice)
+- [x] Module 8: Patient chat interface — SSE streaming, session sidebar, Markdown rendering, PDF download
+- [ ] Module 8 (remaining): voice I/O, intake progress bar, language switching
 
 ### Sprint 5 (Week 9-10): Administration & Reports
 - [ ] Module 4: PubMed ingestion pipeline
 - [ ] Module 9: Admin panel
-- [ ] Module 10: Report generation
+- [x] Module 10: Report generation — ReportLab PDF with demographics, history, assessment, recommendation, disclaimer
 
 ### Sprint 6 (Week 11-12): Polish & Deploy
 - [ ] End-to-end testing with sample patient scenarios
@@ -1144,11 +1158,12 @@ Patient Summary Report
 # Gemini API
 GEMINI_API_KEY=your_gemini_api_key
 
-# PostgreSQL
-DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/bariatric_ai
+# SQLite (WAL mode, async via aiosqlite)
+DATABASE_URL=sqlite+aiosqlite:///./data/bariatric_ai.db
 
-# ChromaDB
-CHROMA_PERSIST_DIR=./data/chroma_db
+# Pinecone
+PINECONE_API_KEY=your_pinecone_api_key
+PINECONE_INDEX_NAME=bariatric-rag
 
 # Auth
 JWT_SECRET=your_jwt_secret_here
@@ -1181,8 +1196,7 @@ MAX_UPLOAD_SIZE_MB=500
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 sqlalchemy[asyncio]>=2.0
-asyncpg>=0.29.0
-alembic>=1.13.0
+aiosqlite>=0.19.0
 pydantic-settings>=2.1.0
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
@@ -1191,8 +1205,8 @@ python-multipart>=0.0.6
 # Gemini
 google-generativeai>=0.8.0
 
-# RAG & Embeddings
-chromadb>=0.4.22
+# RAG & Embeddings (Pinecone)
+pinecone-client>=3.0.0
 
 # Document Processing
 PyMuPDF>=1.23.0        # PDF text + image extraction
@@ -1205,7 +1219,7 @@ pytesseract>=0.3.10    # OCR for video frames
 biopython>=1.83        # NCBI E-utilities wrapper
 
 # PDF Report Generation
-reportlab>=4.0.0       # or weasyprint
+reportlab>=4.0.0
 
 # Utilities
 httpx>=0.26.0          # Async HTTP client
@@ -1224,13 +1238,19 @@ python-dotenv>=1.0.0
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "tailwindcss": "^3.4.0",
+    "@tailwindcss/typography": "^0.5.0",
     "typescript": "^5.0.0",
     "axios": "^1.6.0",
     "react-markdown": "^9.0.0",
+    "remark-gfm": "^4.0.0",
     "react-dropzone": "^14.2.0",
     "zustand": "^4.4.0",
     "lucide-react": "^0.300.0",
-    "@tanstack/react-query": "^5.0.0"
+    "@tanstack/react-query": "^5.0.0",
+    "@radix-ui/react-*": "(via shadcn/ui)",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
+    "tailwind-merge": "^2.0.0"
   }
 }
 ```
@@ -1243,7 +1263,7 @@ python-dotenv>=1.0.0
 
 2. **Hybrid intake (guided chat + structured extraction)**: More natural than a form, but every response is parsed for structured fields. Ensures uniform data across patients while feeling conversational.
 
-3. **Separate ChromaDB collections**: Text and multimodal embeddings have different dimensionalities and query patterns. Separate collections allow independent optimization.
+3. **Single Pinecone index with metadata filters**: Instead of separate ChromaDB collections, a single Pinecone index with metadata filters (source_type) is used. Gemini Embedding 2 produces uniform 3072-dim vectors for both text and multimodal content, so a single index works well. Metadata filters handle content-type separation at query time.
 
 4. **Decision tree gates BEFORE LLM reasoning**: Clinical safety — the tree enforces evidence-based thresholds (BMI, comorbidities) so the LLM can't hallucinate inappropriate recommendations.
 
@@ -1251,7 +1271,7 @@ python-dotenv>=1.0.0
 
 6. **Web Speech API for voice**: Zero cost, no external dependencies, works in Chrome (primary target for research demo). Limitation: accuracy varies by accent — acceptable for prototype.
 
-7. **FastAPI + Next.js split**: Python backend is natural for ML/RAG/ChromaDB ecosystem. Next.js on Vercel gives free hosting with good DX. They communicate via REST API.
+7. **FastAPI + Next.js split**: Python backend is natural for ML/RAG/Pinecone ecosystem. Next.js on Vercel gives free hosting with good DX. They communicate via REST API with SSE for chat streaming. Frontend uses shadcn/ui (Radix primitives + Tailwind) for consistent component design.
 
 ---
 
@@ -1261,11 +1281,11 @@ python-dotenv>=1.0.0
 - Decision tree classification with known patient profiles
 - Intake field extraction from sample conversations
 - PubMed query parsing and deduplication
-- Embedding + retrieval round-trip in ChromaDB
+- Embedding + retrieval round-trip in Pinecone
 
 ### Integration Tests
-- Full intake conversation → structured data stored in Postgres
-- Document upload → chunks in ChromaDB → retrievable by query
+- Full intake conversation → structured data stored in SQLite
+- Document upload → chunks in Pinecone → retrievable by query
 - PubMed update → new papers ingested → retrievable
 - Chat session → decision tree → recommendation with citations
 

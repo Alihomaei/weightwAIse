@@ -61,10 +61,18 @@ async def ingest_pdf(
     chunk_count = 0
     image_dir = os.path.join(settings.UPLOAD_DIR, "images", source_id)
 
-    for page_num in range(len(doc)):
+    total_pages = len(doc)
+    batch_vectors = []
+    BATCH_SIZE = 50
+
+    for page_num in range(total_pages):
         page = doc[page_num]
 
-        # --- Text extraction ---
+        if (page_num + 1) % 10 == 0 or page_num == 0:
+            logger.info("PDF ingestion: page %d/%d (%d chunks so far)", page_num + 1, total_pages, chunk_count)
+            print(f"[PDF] Page {page_num + 1}/{total_pages} — {chunk_count} chunks so far", flush=True)
+
+        # --- Text extraction (skip images for speed — text-only first pass) ---
         text = page.get_text("text")
         if text.strip():
             text_chunks = chunk_by_sections(text, page_num=page_num + 1)
@@ -72,7 +80,7 @@ async def ingest_pdf(
                 chunk_id = f"{source_id}_p{page_num + 1}_c{tc.chunk_index}"
                 try:
                     embedding = await embed_text(tc.text)
-                    all_vectors.append({
+                    batch_vectors.append({
                         "id": chunk_id,
                         "values": embedding,
                         "metadata": {
@@ -82,7 +90,7 @@ async def ingest_pdf(
                             "page_num": page_num + 1,
                             "section_title": tc.section_title or "",
                             "chunk_index": tc.chunk_index,
-                            "text": tc.text[:4000],  # Pinecone metadata limit
+                            "text": tc.text[:4000],
                             "ingested_at": datetime.now(timezone.utc).isoformat(),
                         },
                     })
@@ -90,57 +98,26 @@ async def ingest_pdf(
                 except Exception as e:
                     logger.error("Failed to embed text chunk %s: %s", chunk_id, e)
 
-        # --- Image extraction ---
-        images = page.get_images(full=True)
-        for img_idx, img_info in enumerate(images):
-            xref = img_info[0]
+        # Flush batch to Pinecone every BATCH_SIZE vectors
+        if len(batch_vectors) >= BATCH_SIZE:
             try:
-                pix = fitz.Pixmap(doc, xref)
-                if pix.n > 4:  # CMYK or other
-                    pix = fitz.Pixmap(fitz.csRGB, pix)
-
-                img_bytes = pix.tobytes("png")
-                img_name = f"p{page_num + 1}_img{img_idx}.png"
-                img_path = _save_image(img_bytes, image_dir, img_name)
-
-                chunk_id = f"{source_id}_p{page_num + 1}_img{img_idx}"
-                caption = f"Image from page {page_num + 1} of PDF document"
-
-                try:
-                    embedding = await embed_image(img_path, caption=caption)
-                    all_vectors.append({
-                        "id": chunk_id,
-                        "values": embedding,
-                        "metadata": {
-                            "source_id": source_id,
-                            "source_type": "guideline_pdf",
-                            "modality": "image",
-                            "page_num": page_num + 1,
-                            "section_title": "",
-                            "chunk_index": img_idx,
-                            "image_path": img_path,
-                            "caption": caption,
-                            "text": caption,
-                            "ingested_at": datetime.now(timezone.utc).isoformat(),
-                        },
-                    })
-                    chunk_count += 1
-                except Exception as e:
-                    logger.error("Failed to embed image %s: %s", chunk_id, e)
-
-                pix = None  # free memory
+                pinecone_index.upsert(vectors=batch_vectors)
+                logger.info("Upserted batch of %d vectors (total: %d)", len(batch_vectors), chunk_count)
             except Exception as e:
-                logger.error("Failed to extract image xref=%s from page %d: %s", xref, page_num + 1, e)
+                logger.error("Pinecone upsert failed: %s", e)
+            batch_vectors = []
 
     doc.close()
 
-    # Upsert to Pinecone in batches of 100
-    if all_vectors:
-        for i in range(0, len(all_vectors), 100):
-            batch = all_vectors[i:i + 100]
-            pinecone_index.upsert(vectors=batch)
+    # Flush remaining vectors
+    if batch_vectors:
+        try:
+            pinecone_index.upsert(vectors=batch_vectors)
+        except Exception as e:
+            logger.error("Final Pinecone upsert failed: %s", e)
 
-    logger.info("PDF ingestion complete: %d chunks from %s", chunk_count, file_path)
+    logger.info("PDF ingestion complete: %d text chunks from %s", chunk_count, file_path)
+    print(f"[PDF] DONE: {chunk_count} text chunks from {file_path}", flush=True)
     return chunk_count
 
 

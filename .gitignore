@@ -44,3 +44,7 @@ build/
 backend/data/guidelines/images/
 backend/data/guidelines/*.pdf
 backend/data/weightwaise.db*
+frontend/tsconfig.tsbuildinfo
+
+# Personal / local screenshots
+error/

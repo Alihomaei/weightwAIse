@@ -4,6 +4,15 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _normalize_database_url(url: str) -> str:
+    """Render/Heroku provide ``postgresql://`` URLs; SQLAlchemy async needs ``postgresql+asyncpg://``."""
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    if url.startswith("postgresql://") and "+asyncpg" not in url:
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return url
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=str(Path(__file__).resolve().parent.parent / ".env"),
@@ -40,7 +49,16 @@ class Settings(BaseSettings):
     PUBMED_DIR: str = "./data/pubmed"
 
     # --- Frontend CORS ---
+    # Comma-separated list of allowed origins. Vercel preview URLs
+    # can be matched via CORS_ALLOW_ORIGIN_REGEX (e.g. ^https://weightwaise-.*\.vercel\.app$)
     FRONTEND_URL: str = "http://localhost:3002"
+    CORS_ALLOW_ORIGIN_REGEX: str = ""
+
+    # --- Seed user (optional, created on startup if set) ---
+    SEED_USER_USERNAME: str = ""
+    SEED_USER_PASSWORD: str = ""
+    SEED_USER_FULL_NAME: str = ""
+    SEED_USER_ROLE: str = "patient"
 
     # --- App ---
     DEFAULT_LANGUAGE: str = "en"
@@ -48,3 +66,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+settings.DATABASE_URL = _normalize_database_url(settings.DATABASE_URL)

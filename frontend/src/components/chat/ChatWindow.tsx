@@ -3,15 +3,13 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 /* eslint-disable react-hooks/exhaustive-deps */
 import Image from 'next/image';
-import { useChat } from '@/hooks/useChat';
 import { useVoice } from '@/hooks/useVoice';
 import { useLanguageStore, useAuthStore } from '@/lib/store';
-import { Language, ChatMessage, SessionType } from '@/lib/types';
+import { ChatMessage, ChatSession, IntakeProgress, SessionType, StreamingMessage } from '@/lib/types';
 import { MessageBubble } from './MessageBubble';
 import { VoiceButton } from './VoiceButton';
 import { IntakeProgressBar } from './IntakeProgress';
 import { SessionSummary } from './SessionSummary';
-import { Button } from '@/components/ui/Button';
 import { Separator } from '@/components/ui/Separator';
 import {
   Send,
@@ -23,6 +21,7 @@ import {
   MessageSquare,
   Volume2,
   VolumeX,
+  Menu,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -44,20 +43,35 @@ const phaseConfig: Record<SessionType, { label: string; icon: React.ReactNode; c
   },
 };
 
-export function ChatWindow() {
-  const {
-    session,
-    sessionId,
-    messages,
-    streamingMessage,
-    intakeProgress,
-    currentPhase,
-    isStreaming,
-    sendMessage,
-    stopStreaming,
-    startSession,
-    getOrCreateSession,
-  } = useChat();
+interface ChatWindowProps {
+  session: ChatSession | null;
+  sessionId: string | null;
+  messages: ChatMessage[];
+  streamingMessage: StreamingMessage | null;
+  intakeProgress: IntakeProgress | null;
+  currentPhase: SessionType;
+  isStreaming: boolean;
+  sendMessage: (content: string, isVoice?: boolean) => Promise<void>;
+  stopStreaming: () => void;
+  startSession: () => Promise<ChatSession>;
+  getOrCreateSession: () => Promise<string>;
+  onOpenSidebar?: () => void;
+}
+
+export function ChatWindow({
+  session,
+  sessionId,
+  messages,
+  streamingMessage,
+  intakeProgress,
+  currentPhase,
+  isStreaming,
+  sendMessage,
+  stopStreaming,
+  startSession,
+  getOrCreateSession,
+  onOpenSidebar,
+}: ChatWindowProps) {
 
   const {
     isListening,
@@ -167,25 +181,35 @@ export function ChatWindow() {
   }, []);
 
   const isSessionCompleted = session?.status === 'completed';
-  const phase = currentPhase ? phaseConfig[currentPhase] : phaseConfig.intake;
+  const phase = phaseConfig[currentPhase] ?? phaseConfig.intake;
 
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header - minimal top bar */}
-      <header className="bg-background/80 backdrop-blur-md border-b px-4 py-2.5 shrink-0 z-10">
-        <div className="flex items-center justify-between max-w-3xl mx-auto">
-          <div className="flex items-center gap-3">
+      <header className="bg-background/80 backdrop-blur-md border-b px-3 sm:px-4 py-2.5 shrink-0 z-10">
+        <div className="flex items-center justify-between max-w-3xl mx-auto gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            {/* Mobile hamburger */}
+            {onOpenSidebar && (
+              <button
+                onClick={onOpenSidebar}
+                className="md:hidden p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors shrink-0"
+                aria-label="Open sessions"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+            )}
             <Image
               src="/logo.png"
               alt="WeightwAIse"
               width={100}
               height={44}
-              className="h-8 w-auto"
+              className="h-7 sm:h-8 w-auto shrink-0"
               priority
             />
-            <Separator orientation="vertical" className="h-5" />
+            <Separator orientation="vertical" className="hidden sm:block h-5" />
             <span className={cn(
-              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium',
+              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap',
               phase.color
             )}>
               {phase.icon}
@@ -193,7 +217,7 @@ export function ChatWindow() {
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             {ttsSupported && (
               <button
                 onClick={() => {
@@ -201,7 +225,7 @@ export function ChatWindow() {
                   if (autoReadEnabled) stopSpeech();
                 }}
                 className={cn(
-                  'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                  'flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors',
                   autoReadEnabled
                     ? 'bg-teal-50 text-teal-700 hover:bg-teal-100'
                     : 'text-muted-foreground hover:bg-muted'
@@ -210,12 +234,12 @@ export function ChatWindow() {
                 title={autoReadEnabled ? 'Auto-read ON — click to disable' : 'Auto-read OFF — click to enable'}
               >
                 {autoReadEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-                {autoReadEnabled ? 'ON' : 'OFF'}
+                <span className="hidden sm:inline">{autoReadEnabled ? 'ON' : 'OFF'}</span>
               </button>
             )}
             <button
               onClick={toggleLanguage}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
+              className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
               aria-label={`Switch to ${language === 'en' ? 'Spanish' : 'English'}`}
             >
               <Globe className="h-3.5 w-3.5" />

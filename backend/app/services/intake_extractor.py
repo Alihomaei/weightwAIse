@@ -214,13 +214,13 @@ def get_intake_progress(intake: PatientIntake) -> dict:
     """Calculate intake completion progress."""
     total = len(ESSENTIAL_FIELDS)
     missing = get_missing_fields(intake)
-    collected = total - len(missing)
+    collected_names = [f for f in ESSENTIAL_FIELDS if f not in missing]
 
     return {
         "total_fields": total,
-        "collected_fields": collected,
-        "missing_fields": missing,
-        "progress": round(collected / total, 2) if total > 0 else 0.0,
+        "collected_fields": collected_names,
+        "remaining_fields": missing,
+        "percentage": round((len(collected_names) / total) * 100, 1) if total > 0 else 0.0,
         "intake_complete": len(missing) == 0,
     }
 

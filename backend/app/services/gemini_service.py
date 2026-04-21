@@ -23,6 +23,24 @@ logger = logging.getLogger(__name__)
 genai.configure(api_key=settings.GEMINI_API_KEY)
 
 
+def _build_history_messages(conversation_history: list[dict]) -> list[dict]:
+    """Convert conversation history to Gemini messages with proper role alternation.
+
+    Gemini requires strict user/model alternation. When a previous response
+    fails (e.g. stream error), the DB can end up with consecutive user messages.
+    This merges consecutive same-role messages to maintain valid alternation.
+    """
+    messages = []
+    for msg in conversation_history:
+        role = "user" if msg["role"] == "user" else "model"
+        if messages and messages[-1]["role"] == role:
+            # Merge with previous message of same role
+            messages[-1]["parts"][0] += "\n" + msg["content"]
+        else:
+            messages.append({"role": role, "parts": [msg["content"]]})
+    return messages
+
+
 class GeminiService:
     """Dual-model Gemini service for bariatric surgery consultation."""
 
@@ -100,16 +118,17 @@ class GeminiService:
             messages.append({"role": "user", "parts": [context]})
             messages.append({"role": "model", "parts": ["I have noted the already collected data. I will ask about missing fields."]})
 
-        # Add conversation history
-        for msg in conversation_history:
-            role = "user" if msg["role"] == "user" else "model"
-            messages.append({"role": role, "parts": [msg["content"]]})
+        # Add conversation history (with role alternation fix)
+        messages.extend(_build_history_messages(conversation_history))
 
         # Add current message
         messages.append({"role": "user", "parts": [current_message]})
 
         try:
-            response = await self.flash.generate_content_async(messages)
+            response = await self.flash.generate_content_async(
+                messages,
+                generation_config=genai.GenerationConfig(response_mime_type="application/json")
+            )
             text = response.text.strip()
 
             # Parse JSON response
@@ -169,9 +188,7 @@ class GeminiService:
         messages = [{"role": "user", "parts": [system_prompt]}]
         messages.append({"role": "model", "parts": ["I understand. I will provide evidence-based consultation following these guidelines."]})
 
-        for msg in conversation_history:
-            role = "user" if msg["role"] == "user" else "model"
-            messages.append({"role": role, "parts": [msg["content"]]})
+        messages.extend(_build_history_messages(conversation_history))
 
         messages.append({"role": "user", "parts": [current_message]})
 
@@ -206,9 +223,7 @@ class GeminiService:
         messages = [{"role": "user", "parts": [system_prompt]}]
         messages.append({"role": "model", "parts": ["I will discuss these surgical options with detailed, evidence-based information."]})
 
-        for msg in conversation_history:
-            role = "user" if msg["role"] == "user" else "model"
-            messages.append({"role": role, "parts": [msg["content"]]})
+        messages.extend(_build_history_messages(conversation_history))
 
         messages.append({"role": "user", "parts": [current_message]})
 

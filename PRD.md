@@ -2,7 +2,7 @@
 
 ## 1. Product Overview
 
-**weightwAIse** is a multimodal RAG-powered web application that serves as an AI bariatric and metabolic surgery consultant. It conducts structured patient intake via conversational chat (text + voice, English/Spanish), recommends treatment pathways grounded in clinical guidelines and PubMed literature, and produces comprehensive patient summary reports with inline source citations.
+**weightwAIse** is a multimodal RAG-powered web application that serves as an AI bariatric and metabolic surgery consultant. It conducts structured patient intake via conversational chat (text + voice, English/Spanish), recommends treatment pathways grounded in clinical guidelines and PubMed literature, and produces downloadable PDF patient summary reports.
 
 ## 2. Problem Statement
 
@@ -37,9 +37,12 @@ Clinicians face:
 - **Hybrid guided intake**: Conversational AI gathers structured medical history
 - **Clinical consultation**: After intake, discusses treatment options grounded in RAG-retrieved evidence
 - **Voice I/O**: Web Speech API for speech-to-text and text-to-speech (English + Spanish)
-- **Inline citations**: Every medical claim linked to source guidelines or PubMed papers
-- **Intake progress bar**: Visual indicator of data collection completeness
+- **Intake progress indicator**: Shows completion percentage with a collapsible checklist of collected and remaining fields
 - **Bilingual**: Full English and Spanish support
+- **Markdown rendering**: Assistant messages render with full markdown support — bold, bullets, numbered lists, bordered tables, headings, blockquotes, code blocks. Powered by `@tailwindcss/typography`, `react-markdown`, and `remark-gfm`
+- **SSE streaming**: Chat uses Server-Sent Events with a synchronous accumulator pattern for reliable token streaming. The SSE endpoint auto-refreshes expired JWT tokens before requests (base64url JWT parsing)
+- **Left sidebar (navy)**: Collapsible navy sidebar (`#0f1b2d`) showing session history, session status (completed / in progress), decision path labels, PDF download buttons, and user info at the bottom
+- **Session management**: Users can switch between past sessions and start new consultations from the sidebar
 
 ### 4.2 Clinical Decision Engine
 - **Decision tree**: Rule-based gates per ASMBS/IFSO guidelines (BMI thresholds, comorbidity modifiers, prior attempts, surgical fitness)
@@ -61,9 +64,10 @@ Clinicians face:
 - System prompt editor
 
 ### 4.5 Patient Summary Reports
-- Auto-generated after consultation
-- In-app view + downloadable PDF
-- Sections: demographics, medical history, clinical assessment, discussion, recommendation, clinic referral, sources, disclaimer
+- Downloadable PDF from the sidebar for any session that reached the consultation phase
+- Auto-ends active sessions before generating the report
+- Report sections: demographics, medical history, clinical assessment, discussion summary, recommendation, clinic referral, disclaimer
+- No raw source citations in reports
 
 ## 5. Technical Architecture
 
@@ -78,6 +82,7 @@ Clinicians face:
 | Vector DB | Pinecone (single index, metadata filters) |
 | Relational DB | SQLite with WAL mode (dev) / PostgreSQL (prod) |
 | UI Framework | shadcn/ui (Radix primitives + Tailwind) |
+| Markdown | react-markdown + remark-gfm + @tailwindcss/typography |
 | Document Processing | PyMuPDF, python-pptx, OpenCV, Tesseract |
 | PubMed | NCBI E-utilities + PMC OA API |
 | PDF Reports | ReportLab |
@@ -93,6 +98,7 @@ Clinicians face:
 
 ### Chat
 - `POST /api/chat/sessions` — New session
+- `GET /api/chat/sessions` — List sessions for current user (sidebar history)
 - `POST /api/chat/sessions/{id}/messages` — Send message (SSE streaming)
 - `GET /api/chat/sessions/{id}/messages` — History
 

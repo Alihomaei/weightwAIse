@@ -142,20 +142,8 @@ async def generate_report(
     # Section 6: Clinic Referral
     report["clinic_referral"] = clinic_info
 
-    # Section 7: Sources Cited
-    all_citations = []
-    for msg in messages:
-        cites = msg.get_citations()
-        all_citations.extend(cites)
-    # Deduplicate by chunk_id
-    seen_ids = set()
-    unique_citations = []
-    for c in all_citations:
-        cid = c.get("chunk_id", "")
-        if cid and cid not in seen_ids:
-            seen_ids.add(cid)
-            unique_citations.append(c)
-    report["sources_cited"] = unique_citations
+    # Section 7: Sources Cited (omitted — raw chunk references are not useful for patients)
+    report["sources_cited"] = []
 
     # Section 8: Disclaimer
     report["disclaimer"] = (
@@ -346,23 +334,6 @@ async def generate_pdf(
             elements.append(Paragraph(f"Hours: {clinic['hours']}", body_style))
         if clinic.get("booking_url"):
             elements.append(Paragraph(f"Book online: {clinic['booking_url']}", body_style))
-        elements.append(Spacer(1, 12))
-
-    # Section 7: Sources Cited
-    sources = report.get("sources_cited", [])
-    if sources:
-        elements.append(Paragraph("7. Sources Cited", heading_style))
-        for i, src in enumerate(sources, 1):
-            title = src.get("source_title", "Unknown source")
-            stype = src.get("source_type", "")
-            page = src.get("page_or_section", "")
-            pmid = src.get("pubmed_id", "")
-            ref = f"[{i}] {title}"
-            if page:
-                ref += f", {page}"
-            if pmid:
-                ref += f" (PMID: {pmid})"
-            elements.append(Paragraph(ref, body_style))
         elements.append(Spacer(1, 12))
 
     # Disclaimer

@@ -116,6 +116,40 @@ async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
+// ─── Token Refresh for non-Axios requests ──────────────────────────────────
+
+async function ensureValidToken(): Promise<string | null> {
+  let token = getAccessToken();
+  if (!token) return null;
+
+  if (isTokenExpired(token)) {
+    const refresh = getRefreshToken();
+    if (!refresh) {
+      clearTokens();
+      return null;
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refresh }),
+      });
+      if (res.ok) {
+        const tokens = (await res.json()) as AuthTokens;
+        setTokens(tokens);
+        return tokens.access_token;
+      }
+      clearTokens();
+      return null;
+    } catch {
+      clearTokens();
+      return null;
+    }
+  }
+
+  return token;
+}
+
 // ─── SSE Helper for Chat Streaming ──────────────────────────────────────────
 
 export interface SSECallbacks {
@@ -136,7 +170,12 @@ export async function streamChat(
   callbacks: SSECallbacks,
   signal?: AbortSignal
 ): Promise<void> {
-  const token = getAccessToken();
+  const token = await ensureValidToken();
+  if (!token) {
+    callbacks.onError('Session expired. Please log in again.');
+    if (typeof window !== 'undefined') window.location.href = '/';
+    return;
+  }
   const url = `${API_BASE_URL}/api/chat/sessions/${sessionId}/messages`;
 
   const response = await fetch(url, {

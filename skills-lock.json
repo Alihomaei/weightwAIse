@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "shadcn-ui": {
+      "source": "/home/nezamilab/Projects/weightwAIse/shadcn-ui-skill",
+      "sourceType": "local",
+      "computedHash": "932304491674bb8dec33de11c4b2524cd15c8d423588fe38ff9a3c0f7812e753"
+    }
+  }
+}

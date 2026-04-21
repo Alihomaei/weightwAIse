@@ -107,28 +107,45 @@ export function MessageBubble({ message, isStreaming = false, onSpeak, isVoiceIn
 
         {/* Content */}
         {isAssistant ? (
-          <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground text-sm leading-relaxed">
-            {message.citations.length > 0 ? (
-              <div>{renderContent(cleanContent(message.content))}</div>
-            ) : (
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  p: ({ children }) => <p className="my-1.5">{children}</p>,
-                  ul: ({ children }) => <ul className="list-disc pl-4 my-1.5">{children}</ul>,
-                  ol: ({ children }) => <ol className="list-decimal pl-4 my-1.5">{children}</ol>,
-                  li: ({ children }) => <li className="my-0.5">{children}</li>,
-                  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                  a: ({ href, children }) => (
-                    <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary-700 hover:underline">
-                      {children}
-                    </a>
-                  ),
-                }}
-              >
-                {cleanContent(message.content)}
-              </ReactMarkdown>
-            )}
+          <div className="prose prose-sm max-w-none text-sm leading-relaxed prose-headings:text-foreground prose-headings:font-semibold prose-h1:text-base prose-h2:text-[15px] prose-h3:text-sm prose-p:my-1.5 prose-li:my-0.5 prose-strong:font-semibold prose-strong:text-foreground prose-table:my-2 prose-th:text-left prose-th:text-xs prose-th:font-semibold prose-td:text-xs">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                p: ({ children }) => <p className="my-1.5">{children}</p>,
+                ul: ({ children }) => <ul className="list-disc pl-4 my-1.5">{children}</ul>,
+                ol: ({ children }) => <ol className="list-decimal pl-4 my-1.5">{children}</ol>,
+                li: ({ children }) => <li className="my-0.5 leading-relaxed">{children}</li>,
+                strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                h1: ({ children }) => <h2 className="text-base font-semibold mt-3 mb-1.5 text-foreground">{children}</h2>,
+                h2: ({ children }) => <h3 className="text-[15px] font-semibold mt-3 mb-1.5 text-foreground">{children}</h3>,
+                h3: ({ children }) => <h4 className="text-sm font-semibold mt-2 mb-1 text-foreground">{children}</h4>,
+                table: ({ children }) => (
+                  <div className="overflow-x-auto my-2 rounded-lg border border-border/60">
+                    <table className="min-w-full text-xs">{children}</table>
+                  </div>
+                ),
+                thead: ({ children }) => <thead className="bg-muted/50">{children}</thead>,
+                th: ({ children }) => <th className="px-3 py-1.5 text-left text-xs font-semibold text-foreground border-b border-border/60">{children}</th>,
+                td: ({ children }) => <td className="px-3 py-1.5 text-xs border-b border-border/30">{children}</td>,
+                blockquote: ({ children }) => (
+                  <blockquote className="border-l-2 border-teal-400 pl-3 my-2 text-muted-foreground italic">{children}</blockquote>
+                ),
+                hr: () => <hr className="my-3 border-border/40" />,
+                a: ({ href, children }) => (
+                  <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary-700 hover:underline">
+                    {children}
+                  </a>
+                ),
+                code: ({ children, className }) => {
+                  const isInline = !className;
+                  return isInline
+                    ? <code className="bg-muted/80 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
+                    : <code className={className}>{children}</code>;
+                },
+              }}
+            >
+              {cleanContent(message.content)}
+            </ReactMarkdown>
             {isStreaming && (
               <span className="inline-block w-1.5 h-4 bg-teal-500 animate-pulse ml-0.5 rounded-sm align-text-bottom" />
             )}

@@ -39,7 +39,7 @@ export default function ChatLayout({
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-background">
+    <div className="h-dvh flex overflow-hidden bg-background">
       {children}
     </div>
   );

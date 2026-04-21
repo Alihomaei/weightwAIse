@@ -25,6 +25,7 @@ export function useChat() {
   const [intakeProgress, setIntakeProgress] = useState<IntakeProgress | null>(null);
   const [currentPhase, setCurrentPhase] = useState<SessionType>('intake');
   const abortControllerRef = useRef<AbortController | null>(null);
+  const streamingMessageRef = useRef<StreamingMessage | null>(null);
 
   // Fetch current session metadata (not messages)
   const { data: session, refetch: refetchSession } = useQuery<ChatSession>({
@@ -105,16 +106,19 @@ export function useChat() {
       };
       setMessages((prev) => [...prev, userMessage]);
 
-      // Initialize streaming message
-      setStreamingMessage({
+      // Synchronous accumulator — updated outside React state batching
+      // so onDone always sees the latest values
+      const acc = {
         content: '',
-        citations: [],
-        extracted_fields: {},
-        intake_progress: null,
-        phase: null,
-        model_used: null,
-        isStreaming: true,
-      });
+        citations: [] as Citation[],
+        extracted_fields: {} as Record<string, unknown>,
+        intake_progress: null as IntakeProgress | null,
+        phase: null as SessionType | null,
+        model_used: null as string | null,
+      };
+
+      // Initialize streaming message
+      setStreamingMessage({ ...acc, isStreaming: true });
 
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
@@ -126,60 +130,60 @@ export function useChat() {
           language,
           {
             onToken: (token: string) => {
-              setStreamingMessage((prev) =>
-                prev ? { ...prev, content: prev.content + token } : null
-              );
+              acc.content += token;
+              streamingMessageRef.current = { ...acc, isStreaming: true };
+              setStreamingMessage({ ...acc, isStreaming: true });
             },
             onCitations: (citations: unknown[]) => {
-              setStreamingMessage((prev) =>
-                prev ? { ...prev, citations: citations as Citation[] } : null
-              );
+              acc.citations = citations as Citation[];
+              streamingMessageRef.current = { ...acc, isStreaming: true };
+              setStreamingMessage({ ...acc, isStreaming: true });
             },
             onExtractedFields: (fields: Record<string, unknown>) => {
-              setStreamingMessage((prev) =>
-                prev ? { ...prev, extracted_fields: fields } : null
-              );
+              acc.extracted_fields = fields;
+              streamingMessageRef.current = { ...acc, isStreaming: true };
+              setStreamingMessage({ ...acc, isStreaming: true });
             },
             onIntakeProgress: (progress: unknown) => {
               const prog = progress as IntakeProgress;
+              acc.intake_progress = prog;
               setIntakeProgress(prog);
-              setStreamingMessage((prev) =>
-                prev ? { ...prev, intake_progress: prog } : null
-              );
+              streamingMessageRef.current = { ...acc, isStreaming: true };
+              setStreamingMessage({ ...acc, isStreaming: true });
             },
             onPhase: (phase: string) => {
+              acc.phase = phase as SessionType;
               setCurrentPhase(phase as SessionType);
-              setStreamingMessage((prev) =>
-                prev ? { ...prev, phase: phase as SessionType } : null
-              );
+              streamingMessageRef.current = { ...acc, isStreaming: true };
+              setStreamingMessage({ ...acc, isStreaming: true });
             },
             onModelUsed: (model: string) => {
-              setStreamingMessage((prev) =>
-                prev ? { ...prev, model_used: model } : null
-              );
+              acc.model_used = model;
+              streamingMessageRef.current = { ...acc, isStreaming: true };
+              setStreamingMessage({ ...acc, isStreaming: true });
             },
             onDone: () => {
-              setStreamingMessage((prev) => {
-                if (prev && prev.content) {
-                  const finalMessage: ChatMessage = {
-                    id: generateId(),
-                    session_id: sid,
-                    role: 'assistant',
-                    content: prev.content,
-                    citations: prev.citations,
-                    extracted_fields: prev.extracted_fields,
-                    model_used: prev.model_used,
-                    language,
-                    created_at: new Date().toISOString(),
-                  };
-                  setMessages((msgs) => [...msgs, finalMessage]);
-                }
-                return null;
-              });
+              if (acc.content) {
+                const finalMessage: ChatMessage = {
+                  id: generateId(),
+                  session_id: sid,
+                  role: 'assistant',
+                  content: acc.content,
+                  citations: acc.citations,
+                  extracted_fields: acc.extracted_fields,
+                  model_used: acc.model_used,
+                  language,
+                  created_at: new Date().toISOString(),
+                };
+                setMessages((msgs) => [...msgs, finalMessage]);
+              }
+              streamingMessageRef.current = null;
+              setStreamingMessage(null);
               setStreaming(false);
             },
             onError: (error: string) => {
               addToast('error', `Chat error: ${error}`);
+              streamingMessageRef.current = null;
               setStreamingMessage(null);
               setStreaming(false);
             },
@@ -190,6 +194,7 @@ export function useChat() {
         if ((err as Error).name !== 'AbortError') {
           addToast('error', 'Failed to send message. Please try again.');
         }
+        streamingMessageRef.current = null;
         setStreamingMessage(null);
         setStreaming(false);
       }
@@ -203,23 +208,23 @@ export function useChat() {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
-    setStreamingMessage((prev) => {
-      if (prev && prev.content) {
-        const finalMessage: ChatMessage = {
-          id: generateId(),
-          session_id: sessionId || '',
-          role: 'assistant',
-          content: prev.content + '\n\n*[Response stopped]*',
-          citations: prev.citations,
-          extracted_fields: prev.extracted_fields,
-          model_used: prev.model_used,
-          language,
-          created_at: new Date().toISOString(),
-        };
-        setMessages((msgs) => [...msgs, finalMessage]);
-      }
-      return null;
-    });
+    const prev = streamingMessageRef.current;
+    if (prev && prev.content) {
+      const finalMessage: ChatMessage = {
+        id: generateId(),
+        session_id: sessionId || '',
+        role: 'assistant',
+        content: prev.content + '\n\n*[Response stopped]*',
+        citations: prev.citations,
+        extracted_fields: prev.extracted_fields,
+        model_used: prev.model_used,
+        language,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((msgs) => [...msgs, finalMessage]);
+    }
+    streamingMessageRef.current = null;
+    setStreamingMessage(null);
     setStreaming(false);
   }, [sessionId, setStreaming, language]);
 
@@ -234,6 +239,17 @@ export function useChat() {
       addToast('error', 'Failed to end session.');
     }
   }, [sessionId, queryClient, addToast]);
+
+  // Switch to an existing session
+  const switchSession = useCallback(async (sid: string) => {
+    if (sid === sessionId) return;
+    setSessionId(sid);
+    setIntakeProgress(null);
+    setStreamingMessage(null);
+    await loadMessages(sid);
+    // Refetch session metadata
+    queryClient.invalidateQueries({ queryKey: ['chatSession', sid] });
+  }, [sessionId, setSessionId, loadMessages, queryClient]);
 
   // Manual refetch for resuming sessions
   const refetchMessages = useCallback(async () => {
@@ -256,5 +272,6 @@ export function useChat() {
     refetchSession,
     refetchMessages,
     setSessionId,
+    switchSession,
   };
 }

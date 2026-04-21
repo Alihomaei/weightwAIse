@@ -13,6 +13,13 @@ WeightwAIse is a web application that acts as a virtual metabolic and bariatric 
 ## Features
 
 - **Conversational Patient Intake** — Guided chat collects structured medical history naturally, one question at a time
+- **Intake Progress Bar** — Visual progress indicator with percentage and field checklist so patients see how far along they are
+- **Session Sidebar** — Collapsible navy sidebar on the chat page showing session history with status, decision path labels, and PDF download buttons
+- **Session Management** — Switch between past sessions or start a new consultation from the sidebar
+- **PDF Reports** — Downloadable from the sidebar for sessions that reached consultation; includes demographics, medical history, clinical assessment, discussion, recommendation, clinic referral, and disclaimer
+- **Markdown Rendering** — Full markdown in assistant responses (bold, bullets, tables, headings, blockquotes) via `react-markdown`, `remark-gfm`, and `@tailwindcss/typography`
+- **SSE Streaming** — Reliable Server-Sent Events with a synchronous accumulator pattern for smooth token-by-token rendering
+- **Auto Token Refresh** — SSE requests auto-refresh expired JWTs; includes base64url parsing fix
 - **Clinical Decision Engine** — Rule-based decision tree per ASMBS/IFSO guidelines (BMI thresholds, comorbidities, prior attempts, surgical fitness)
 - **Dual LLM Architecture** — Gemini 2.5 Flash (chat, low temp) + Gemini 3.1 Pro (clinical reasoning, very low temp)
 - **Multimodal RAG** — PDF, PowerPoint, video, text ingested with Gemini Embedding 2 (text + images in same vector space)
@@ -22,7 +29,6 @@ WeightwAIse is a web application that acts as a virtual metabolic and bariatric 
 - **Inline Citations** — Every clinical claim cited from guidelines and literature
 - **Clinic Referrals** — Configurable clinic info, AI directs patients to visit the clinic
 - **Admin Panel** — Manage knowledge base, PubMed queries, patient records, clinic settings
-- **Patient Reports** — Auto-generated summaries with PDF download
 - **Bilingual** — Full English and Spanish support
 - **shadcn/ui** — Minimal, modern UI inspired by Apple and ChatGPT
 
@@ -30,7 +36,8 @@ WeightwAIse is a web application that acts as a virtual metabolic and bariatric 
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Next.js 14, TypeScript, Tailwind CSS, shadcn/ui |
+| Frontend | Next.js 14, TypeScript, Tailwind CSS, shadcn/ui, Zustand, React Query, Lucide React |
+| Markdown | react-markdown, remark-gfm, @tailwindcss/typography |
 | Backend | Python 3.11+, FastAPI, Uvicorn |
 | LLM (chat) | Gemini 2.5 Flash (temp 0.3) |
 | LLM (reasoning) | Gemini 3.1 Pro (temp 0.2) |
@@ -124,8 +131,8 @@ weightwAIse/
 ├── frontend/
 │   ├── src/
 │   │   ├── app/                 # Next.js pages (chat, admin, login)
-│   │   ├── components/          # shadcn/ui + custom components
-│   │   ├── lib/                 # API client, auth, voice, types
+│   │   ├── components/          # shadcn/ui + custom (incl. chat/SessionSidebar)
+│   │   ├── lib/                 # API client, auth, voice, types, Zustand store
 │   │   └── hooks/               # useAuth, useChat, useVoice
 │   ├── public/logo.png          # WeightwAIse logo
 │   ├── package.json
